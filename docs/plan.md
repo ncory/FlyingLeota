@@ -768,13 +768,13 @@ meet in Phase 4, on the full frame.
 
 ```mermaid
 flowchart LR
-  P0["0. Buy bench parts"] --> P1["1. Bench electronics<br/>(ESP32-P4)"]
-  P0 --> P3["3. One-winch tests<br/>motor shootout, lines"]
+  P0["Phase 0: buy bench parts"] --> P1["Phase 1: bench electronics<br/>(ESP32-P4)"]
+  P0 --> P3["Phase 3: one-winch tests<br/>motor shootout, lines"]
   P1 --> P3
-  P2["2. Simulation<br/>(any time)"] --> P4
+  P2["Phase 2: simulation<br/>(any time)"] --> P4
   H["Head track<br/>sphere, weight, projector,<br/>battery, dock charging"] --> P4
-  P3 -->|"motor type,<br/>line short list"| P4["4. Frame in the workshop<br/>4 winches, dummy head"]
-  P4 --> P5["5. Full scale<br/>real head, wind, failures"] --> P6["6. Site"]
+  P3 -->|"motor type,<br/>line short list"| P4["Phase 4: frame in the workshop<br/>4 winches, dummy head"]
+  P4 --> P5["Phase 5: full scale<br/>real head, wind, failures"] --> P6["Phase 6: site"]
 ```
 
 ### Motion track
