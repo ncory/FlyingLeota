@@ -17,8 +17,22 @@ Nate before it is built.
 | G4 | At least two hardwired emergency stops. They work even if the software is dead. |
 | G5 | It runs outdoors under a tent, enclosed on 3 sides and seen from 1 side. It has clear wind rules and enforces them itself. |
 
-Non-goals for version 1: turning or tilting the head, effects on the head (lights,
-projection), and more than one flying object.
+Non-goals for version 1: turning or tilting the head, and more than one flying object.
+The head's own projector and LEDs run on their own battery and are not part of the motion
+controller.
+
+### Site and prop (from Nate, 2026-11-03)
+
+| Item | Value |
+| --- | --- |
+| Tent | About 8 ft × 8 ft (2.44 m). Pulleys at about 8 ft (2.44 m). |
+| Dock | A pedestal fixed to a table in the middle of the tent, its top 1–1.5 m off the floor. The head rests here when it isn't flying. |
+| Head | Lifesize, inside a clear sphere made to look like a crystal ball, up to about 2 ft (0.61 m) across. |
+| On board | A projector and maybe LEDs, on a battery. No power through the lines: they stay as thin as possible. |
+| Viewing | At night, in low light. The lines should vanish into the dark. |
+
+This is like the séance-room crystal ball: it sits on the table, rises, drifts and floats,
+and settles back. That fits the space well, because the space is small (section 4).
 
 ## 2. How it works
 
@@ -65,9 +79,9 @@ Why not the other layouts:
 
 Put the pulleys on their own freestanding frame inside the tent, not on the tent
 poles. Tent frames move in the wind, and the lines pull inward on whatever holds them.
-If the posts move, the head moves. Options: rented 12-inch box truss with bases, or a
-frame of steel pipe or aluminum extrusion with outriggers and ballast. Section 4 gives the
-loads.
+If the posts move, the head moves. At 8 ft, a frame of aluminum extrusion or steel
+strut channel works well: four posts, a rectangle tying their tops together, and wide
+ballasted feet. Section 4 gives the loads.
 
 ### Lines
 
@@ -78,7 +92,7 @@ stay the same length all evening. Choose the line by testing (Phase 3). For now:
 | --- | --- | --- | --- |
 | Nylon monofilament (clear) | Good at any color backdrop | High. Stretches noticeably under load, creeps, and **changes length when wet or humid**. | Needs constant re-trimming. Least suited to a damp outdoor tent. |
 | Fluorocarbon (clear) | Good | Lower than nylon, still meaningful | Stiff, and has memory on a drum. |
-| **Braided UHMWPE (Dyneema/Spectra) fishing line, black, about 80–150 lb test** | Thin (about 0.35–0.5 mm). Disappears against black. | Very low | **Recommended starting point.** Strong for its size. Spools well on a grooved drum. |
+| **Braided UHMWPE (Dyneema/Spectra) fishing line, black, about 150–250 lb test** | Thin (about 0.5–0.7 mm). Disappears against black. | Very low | **Recommended starting point.** Strong for its size. Spools well on a grooved drum. |
 
 Pick the line size from the loads in section 4. Theatre rigging commonly uses large design
 factors (often 8:1 to 10:1). Section 7 lists this as an open question.
@@ -124,10 +138,11 @@ between the ESP32 and the outside world:
 
 ### 3.2 Winches: motors and drives
 
-Load numbers come from section 4: about 10–25 N per line in normal flight and up to ~50
-N near the top of the workspace, with a 2 kg head. Design each winch for **80 N
-working**. With a 15 mm radius drum, that is 1.2 N·m. At 0.5 m/s line speed the drum
-turns about 320 rpm. A NEMA 23 does this directly, with no gearbox.
+Load numbers come from section 4: with a 5 kg head, about 30–60 N per line in normal
+flight and over 100 N if the ball goes close to the pulleys. Design each winch for **150 N
+working**. With a 15 mm radius drum, that is 2.3 N·m. The space is small, so the head moves
+slowly: 0.3 m/s line speed is about 190 rpm at the drum. A NEMA 23 of 3 N·m or more does this
+directly, with no gearbox, because stepper torque is highest at low speed.
 
 **A hanging load needs brakes.** If drive power drops (E-stop, power cut, fault), an
 unbraked motor lets the head fall. Use fail-safe brakes, which grip when power is
@@ -142,7 +157,60 @@ removed. Removing drive power then engages the brakes too, which matches SCMP's
 | D. MKS SERVO57D (CAN or RS-485 closed-loop stepper) | ~$50–80 | Cheap. Good for bench experiments. | Thin documentation. Unproven for a hanging load. |
 
 Recommendation: **build version 1 on Option A, and write the firmware with a drive
-interface** so Option B can replace it later without changing the rest.
+interface** so Option B can replace it later without changing the rest. One caveat: noise.
+The audience is close, at night, in a quiet scene, and steppers hum or whine. Buy one of
+each for Phase 3 (a single winch) and listen to both under load before buying four.
+
+#### Closed-loop stepper or ODrive: the difference
+
+Both are a motor, an encoder that measures where the shaft is, and a drive that powers the
+motor. They differ in **what you tell the drive**.
+
+**Closed-loop stepper: "be at this position."** The ESP32 sends step pulses. Each pulse
+means "turn one tiny fixed angle more." The drive pushes as hard as it needs to keep the
+shaft exactly where the pulses say. The encoder lets it correct a slip, and it raises an
+alarm if it can't keep up. It's like telling someone "hold your hand exactly here." They
+will, however hard you push, until they give up.
+
+- It holds a hanging load firmly and simply. Steppers are strongest at low speed, which is
+  all this rig needs.
+- Setup is wiring and a few switches. There is almost nothing to tune.
+- It never says how hard it's pulling. A tight line and a slack line look the same to it.
+  So we add a load cell in each line to measure tension.
+- It is cheaper, and brake versions exist.
+- It hums or whines, more or less depending on the drive.
+
+**ODrive (brushless servo): "be here," "move at this speed," or "pull this hard."** The
+motor is a brushless motor, like those in drones and robots. The ODrive board controls the
+current in its coils directly, many thousands of times a second, and takes commands over
+CAN. Current is torque, and torque on a drum is line tension. So the ODrive can be told
+"pull this line with 40 N." If something pulls harder, it gives way. If the line goes loose,
+it takes up the slack. It's like telling someone "keep this rope tight with this much
+force." Their hand goes wherever it must.
+
+- It can control tension directly, and it reports current, which gives a rough tension
+  reading without a load cell.
+- It can act like a stiff spring around a target length: hold position, but give a little.
+  That is exactly what four lines on a three-axis rig need (below).
+- It is very smooth and nearly silent.
+- It needs tuning: control gains, and an encoder calibration. Some setups do that
+  calibration by turning the motor at power-up, which a hanging head can't allow. We
+  would need an absolute encoder or a saved calibration.
+- It costs about twice as much, and needs a separate brake, a custom motor mount and
+  drum. Stock has been patchy.
+
+**Why the difference matters here.** Four lines hold a head that has three axes, so one
+line is always extra. If all four lines are held to exact lengths, any small error (a
+pulley a few millimetres off, a line that stretched) makes one line go slack or makes the
+motors fight. Something must manage tension:
+
+| With | How tension is managed |
+| --- | --- |
+| Closed-loop steppers | Load cells measure each line. The firmware changes the line lengths a little, many times a second, until the tensions match what the model expects. All in our software. |
+| ODrive | The drives do much of it: each line acts like a spring, or one line is run in "pull this hard" mode. Load cells become a check, not the main control. |
+
+Both work. Steppers put the tension work in our firmware but are simple to start with.
+The ODrive puts it in the drive, at the price of tuning and cost.
 
 Winch mechanics:
 
@@ -230,46 +298,103 @@ flowchart LR
 
 ## 4. The numbers that drive the design
 
-A quick static model (to become a proper sizing tool in Phase 0). It assumes pulleys at
-3.5 m on a 6 m × 4 m rectangle and treats the head as a point. "Slackest line" is the highest the lowest line tension can be. It
-shows how hard a breeze must push before a line goes loose.
+A quick static model (to become a proper sizing tool in Phase 0). It uses the real tent:
+pulleys at 2.44 m, set 8 cm in from each corner of the 8 ft square. The ball is 0.61 m
+across, and the four lines attach to a ring 0.24 m across on top of it.
 
-| Head position (x, depth, height) | 2 kg head: slackest line | 2 kg head: highest line | Same, while accelerating at 1 m/s² |
+### What the head weighs
+
+The clear sphere alone is a big share of the weight. A 0.61 m acrylic sphere weighs:
+
+| Wall thickness | Sphere weight |
+| --- | --- |
+| 1.5 mm | 2.1 kg |
+| 2 mm | 2.8 kg |
+| 3 mm | 4.2 kg |
+| 4.5 mm | 6.3 kg |
+
+Add the head form, projector, battery, LEDs and the attachment ring. A total of **4–8 kg**
+is likely, so the model uses 5 kg. A heavier head is steadier in the wind but needs bigger
+lines and winches. Keep the battery low in the ball: a low center of weight hangs steadily
+under the attachment ring.
+
+### Line tensions (5 kg head)
+
+"Slackest line" is the highest that the loosest line can be held at. It shows how hard a
+breeze must push before a line goes loose. Every number scales with weight: an 8 kg head
+gives 1.6 times these.
+
+| Ball position | Gap from ball top to pulleys | Slackest line | Highest line |
 | --- | --- | --- | --- |
-| Center, 1.75 m | 11 N | 11 N | 12 N |
-| Center, 2.75 m | 24 N | 24 N | 27 N |
-| Side, 2 m off center, 1.5 m | 5 N | 12 N | 14 N |
-| Low corner (2, 1, 1.0 m) | 4 N | 13 N | 15 N |
-| Upper corner (2, 1, 2.5 m) | 9 N | 20 N | 22 N |
-| 0.5 m below the pulleys, 1 m upstage | 21 N | 47 N | 52 N |
+| Center | 0.64 m | 30 N | 30 N |
+| Center | 0.44 m | 42 N | 42 N |
+| Center | 0.28 m | 60 N | 60 N |
+| Center | 0.13 m | 115 N | 115 N |
+| 0.4 m to one side | 0.64 m | 22 N | 36 N |
+| 0.6 m off center, both ways (near a corner) | 0.64 m | 17 N | 39 N |
+| 0.4 m off center, both ways | 0.33 m | 39 N | 58 N |
 
 What follows from this:
 
-1. **Tensions are low.** Lines, motors and frame are modest. The posts must take the
-   inward pull of the lines, plus wind on the tent and curtains.
-2. **Heavier is steadier.** Every tension scales with the head's weight. A 0.5 kg foam
-   head would be pushed around by a draft. Aim for 1.5–3 kg (with ballast if needed),
-   and size the winches for it.
-3. **Stay away from the top and the corners.** Near the pulley plane, tensions climb
-   fast. In low corners, one line has almost nothing on it. The workspace is a box
-   inside the frame: about 1 m below the pulleys, and short of the corners.
-4. **Four lines, three axes: one line too many.** With all four lines set by position,
+1. **The space to fly in is small.** The ball is a quarter of the tent's width. Keep
+   0.3 m between the ball and the curtains. Its center can then move only about **±0.5–0.6
+   m** from the middle in each direction.
+2. **Height is the tightest limit.** Tensions climb fast as the top of the ball nears the
+   pulleys. Keep at least about 0.25–0.3 m between the ball top and the pulleys. The ball
+   then rises at most to a center height of about 1.85 m.
+3. **The pedestal height decides how far it can rise.** With the ball resting on the
+   pedestal:
+
+   | Pedestal top | Ball center when docked | Room to rise |
+   | --- | --- | --- |
+   | 1.0 m | about 1.3 m | about 0.55 m |
+   | 1.25 m | about 1.55 m | about 0.3 m |
+   | 1.5 m | about 1.8 m | almost none |
+
+   **The pedestal should be at the low end, 1.0 m or lower,** unless the pulleys can go
+   higher (see Q1). Once clear of the table, the ball can also come down beside it.
+4. **Tensions are moderate, and nothing is close to slack.** Even near a corner, the
+   slackest line keeps 17 N. Size for 150 N working per line (section 3.2).
+5. **Four lines, three axes: one line too many.** With all four lines set by position,
    a few millimetres of error in anchor positions or line length either makes one line
    go slack or makes them fight each other. The lines must be **tension-managed**, not just
    position-controlled. Maslow 4 (four belts, ESP32) and Hangprinter (four lines) both
-   ran into this. Section 5.3 has the approach.
+   ran into this. Section 3.2 explains how the two motor options handle it. Section 5.3
+   has the firmware side.
+6. **The posts take an inward pull** of up to about 100 N each, sideways at the top. The
+   frame needs diagonal braces or a top rectangle that ties the posts together.
 
-Wind force on the head, for scale (0.25 m round head, drag coefficient ~0.75):
+### Wind on the ball
 
-| Wind | Force on head |
-| --- | --- |
-| 5 m/s (11 mph) | ~0.6 N |
-| 10 m/s (22 mph) | ~2.3 N |
-| 15 m/s (34 mph) | ~5 N |
+A smooth 0.61 m sphere (drag coefficient about 0.47) catches:
 
-So a gust around 10–12 m/s can start to loosen a corner line on a 2 kg head. In
-practice, other things will set the limit first: curtains billowing into the lines,
-the frame swaying, and the head visibly bobbing. Section 6 turns this into rules.
+| Wind | Force on the ball | Share of a 5 kg head's weight |
+| --- | --- | --- |
+| 3 m/s (7 mph) | 0.7 N | 1% |
+| 5 m/s (11 mph) | 2.1 N | 4% |
+| 7 m/s (16 mph) | 4.0 N | 8% |
+| 10 m/s (22 mph) | 8.2 N | 17% |
+| 12 m/s (27 mph) | 11.9 N | 24% |
+
+The lines won't go slack at any of these. The real limit is how it looks: the ball sways
+and rocks, the curtains billow towards it, and the posts move. A wide attachment ring and
+a low center of weight cut the rocking. Wind inside a tent closed on three sides is much
+lower than outside, except when it blows straight in the open front. Section 6 turns this
+into rules.
+
+### Power on board
+
+- Battery: work it out from the projector's power draw and the length of an evening. A
+  10 W projector for 4 hours needs 40 Wh. Allow 50% more for LEDs and battery ageing.
+- **Charge on the dock:** spring-loaded contacts on the pedestal touch pads on the bottom of
+  the ball. It charges every time it lands. Low voltage only, and the controller cuts power to
+  the contacts unless the ball is docked.
+- A projector in a closed sphere gets hot. Plan hidden vents, or a projector small enough to
+  run cool.
+- If the projector's content needs cueing from Show Controller, a Pi Zero 2 W follower in
+  the ball could play it. That link would be Wi-Fi. It carries cues only, never motion,
+  and the follower plays its own copy of the media in sync. This is optional and separate
+  from the motion controller.
 
 ## 5. Software
 
@@ -324,8 +449,8 @@ The motion task never waits on the network, the screen or flash.
 
 | Fault | When |
 | --- | --- |
-| `slack_line` | A line's tension stays below its minimum (say 2 N) for 100 ms. |
-| `overload` | A line's tension goes above its maximum (say 80 N). |
+| `slack_line` | A line's tension stays below its minimum (say 5 N) for 100 ms. |
+| `overload` | A line's tension goes above its maximum (say 150 N). |
 | `tension_mismatch` | The measured tension pattern doesn't match the model. This catches bad calibration, a snag on a curtain, or a broken line. |
 | `drive_alarm` | A drive reports a position error. |
 
@@ -398,12 +523,15 @@ stateDiagram-v2
   position, and a line may have been moved by hand.
 - **Heartbeat loss** only applies in Remote mode. In Local mode the operator at the screen
   is in control.
-- **Homing** uses a **dock**: a hidden cradle at a known spot where the head rests with
-  its lines loose. Homing reels each line in slowly until its tension reaches the
-  pre-tension (say 5 N). The rig now knows every line length from the dock's position.
-  It lifts 50 mm and checks that the tensions match the model. This is better than limit
-  switches, which a cable robot doesn't really have. It is also the overnight and
-  bad-weather parking spot.
+- **Homing** uses the **dock**: the pedestal on the table, at a known spot, where the ball
+  rests with its lines loose. A shaped seat (a ring or cup) puts the ball in the same
+  place every time. Homing reels each line in slowly until its tension reaches the
+  pre-tension (say 10 N). The rig now knows every line length from the dock's position.
+  It lifts 30 mm and checks that the tensions match the model. This is better than limit
+  switches, which a cable robot doesn't really have. The dock is also where the ball
+  charges, and where it parks overnight and in bad weather.
+- **The table is a keep-out zone.** The ball may not come lower than the table top
+  while it is over the table, except straight down onto the dock.
 
 ### 5.6 Touchscreen
 
@@ -460,8 +588,8 @@ lines. Set Amber below the lowest of those, and Red at it.
 Site rules that make the numbers better:
 
 - Face the tent's open side away from the usual wind, if you can.
-- Tie and weight the curtain bottoms. Keep at least 0.5 m between the curtains and any
-  line or the head's workspace.
+- Tie and weight the curtain bottoms. Keep at least 0.3 m between the curtains and the
+  ball's path. The tent is small, so every bit of curtain movement matters.
 - No guests under the head or in reach of a line. Barricade the area under the workspace.
 
 ## 7. Risks and what handles them
@@ -486,7 +614,7 @@ Site rules that make the numbers better:
 | **1. Bench electronics** | P4 board, Ethernet, LVGL screens with fake data. The SCMP server, tested against Show Controller's SCMP client. E-stop chain with the safety relay on a test panel. One drive and motor. | Show Controller connects, arms, jogs and stops one motor. The E-stop drops power with the ESP32 unplugged. |
 | **2. Simulation** | Kinematics, profiles and state machine in C++, with unit tests. An SCMP-speaking simulator with a 3D view. | A timeline in Show Controller flies the simulated head. |
 | **3. One winch** | Drum, fairlead, tension sensor, brake sequencing. Line tests (stretch, creep, visibility against black). | Tension readings are steady, brakes hold the load, and a line is chosen. |
-| **4. Small rig** | A 1.5–2 m frame, four winches, a light test weight. Tension trim, dock homing, workspace checks, the joystick from Show Controller. | Flies smoothly in 2-axis and 3-axis modes. Every fault in section 7 has been triggered on purpose. |
+| **4. Frame in the workshop** | The real 8 ft frame, built away from the tent, with four winches and a test weight in place of the ball. Tension trim, dock homing, workspace checks, the joystick from Show Controller. | Flies smoothly in 2-axis and 3-axis modes. Every fault in section 7 has been triggered on purpose. |
 | **5. Full scale** | Full frame, real head. Tuning. Wind tests (section 6). Failure tests: E-stop at full speed, unplug Ethernet, cut power, break a line on a dummy load. | Wind levels have real numbers. All failure tests pass. |
 | **6. Site and operation** | Install under the tent. Write the checklists: setup, daily start (inspect, home, test E-stops), weather checks, shutdown. Line replacement schedule. | A show runs from Show Controller with the operator on the pendant. |
 
@@ -494,12 +622,12 @@ Site rules that make the numbers better:
 
 | # | Question | Why it matters |
 | --- | --- | --- |
-| Q1 | How big is the tent, and how high can the pulleys go? Is the space in front of the curtain enclosure part of the scene? | Sets the frame, the workspace and the tensions. |
-| Q2 | How much does the head weigh, and how big is it? Does it need to look at the audience the whole time? | Line, motor and wind numbers all scale with weight. Heading control sets the attachment frame. |
-| Q3 | Does the head need power on board (lit face, a small projector, a turning servo)? | A battery adds weight and a charging routine. A turning servo would be a 4th SCMP axis over a wireless link, which is a separate safety question. |
+| Q1 | Tent: 8 ft × 8 ft, pulleys at 8 ft (answered). **Does the roof peak higher than 8 ft?** Could the pulleys go there? Could the pedestal be lower than 1 m? | Every extra 0.1 m between pedestal and pulleys is 0.1 m more rise (section 4). |
+| Q2 | Ball up to 2 ft across (answered). **What will the whole head weigh,** with sphere, projector and battery? How thick is the sphere's wall? Must the face stay towards the audience? | Lines, motors and wind numbers all scale with weight. 5 kg is assumed. |
+| Q3 | Projector and LEDs on a battery (answered). What projector, and how much power does it draw? Does its content need cues from Show Controller? | Battery size and weight, heat, and whether a follower rides in the ball. |
 | Q4 | 3-axis from the start, or 2-axis first and 3-axis later? | Same hardware. Only commissioning order changes. |
 | Q5 | Option A (closed-loop steppers with brakes) or Option B (ODrive brushless with torque control)? | Cost, tuning effort and how tension is managed. I recommend A. |
-| Q6 | How fast should it fly at most? | Sets drum size and motor choice. 0.5 m/s is assumed. |
+| Q6 | How fast should it fly at most? | Sets drum size and motor choice. 0.3 m/s is assumed. |
 | Q7 | Can guests get near or under the workspace? Where will the operator stand? | Barricades, E-stop count and pendant cable length. |
 | Q8 | Design factor for the lines (theatre practice is often 8:1–10:1), and a line replacement schedule? | Line size, and so visibility. |
 | Q9 | Are you happy to extend SCMP (section 5.4) in the BEDShowController repo? | `local`, `weather` and the extra status fields need it. |
