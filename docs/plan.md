@@ -4,8 +4,31 @@ A head that floats in the air, held by four motor-driven lines. The motion contr
 is an ESP32 with wired Ethernet and a local touchscreen. Show Controller controls it
 over the Show Controller Motion Protocol (SCMP).
 
-Status: research and planning. No code yet. Every "Proposed" item below needs a yes from
-Nate before it is built.
+Status: research and planning, November 2026. No code yet. Every "Proposed" item below
+needs a yes from Nate before it is built.
+
+## Summary
+
+- **The prop:** a lifesize head inside an 18 in (0.46 m) clear crystal ball, likely 5–8 kg.
+  It rests on a pedestal 1.0 m up, in the middle of an 8 ft × 8 ft tent. It rises about
+  0.68 m and drifts about ±0.69 m each way, always facing the audience. A projector,
+  a Raspberry Pi Zero 2 W and a battery ride inside.
+- **The rig:** four winches at the bases of four corner posts. Each line runs up its post,
+  over a pulley at 8 ft and down to a small fitting on top of the ball, like Skycam. The
+  same hardware flies in 3 axes, or in a fixed depth plane.
+- **The controller:** an ESP32-P4 board with wired Ethernet and a 7 in touchscreen. Show
+  Controller drives it over SCMP as three axes: x, y and z. The touchscreen shows status
+  and has local controls: remote on/off, arm, home, park and stop.
+- **The motors:** closed-loop steppers with fail-safe brakes are the lead choice. ODrive
+  brushless servos are the alternative. One of each gets tested before buying four.
+- **Safety:** two or more hardwired E-stops through a safety relay. A controlled stop,
+  then power off, and the brakes hold the ball. The firmware keeps its own limits,
+  tension checks and a network heartbeat. Software is never the only safety layer.
+- **Weather:** a wind sensor plus line-tension monitoring. Green, amber and red levels.
+  At red, the ball flies home to the dock and locks out until conditions settle.
+- **Next:** buy the bench parts (about $800–1,100), then run two test tracks side by side:
+  motion (one winch, both motor types, line samples) and the head (sphere, projector,
+  power, weight).
 
 ## 1. Goals
 
@@ -160,7 +183,7 @@ removed. Removing drive power then engages the brakes too, which matches SCMP's
 | --- | --- | --- | --- |
 | **A. Closed-loop stepper, NEMA 23, 2–3 N·m, with a 24 V fail-safe brake.** Drive: StepperOnline CL57T V4.1 class, or Leadshine CS-D507E with the CS-M22313B brake motor. 48 V DC. Step/dir input, alarm output. | ~$150–250 | **Recommended for version 1.** Simple, cheap, high holding torque, brakes available. The encoder catches missed steps, and the drive raises an alarm on following error. | No direct torque control, so line tension is managed through load cells (section 4). |
 | B. Brushless servo: ODrive S1 + M8325s motor, controlled over CAN, plus a separate brake. | ~$300–350 + brake | Torque mode controls line tension directly. Motor current gives a tension reading. Hangprinter's cable printer is built this way. | More tuning. Brake and drum need custom mounts. Often out of stock. |
-| C. Teknic ClearPath-SDSK integrated servo | ~$385–600 | Excellent, all in one, step/dir. | Expensive, and I found no brake option. |
+| C. Teknic ClearPath-SDSK integrated servo | ~$385–600 | Excellent, all in one, step/dir. | Expensive, and no brake option was found. |
 | D. MKS SERVO57D (CAN or RS-485 closed-loop stepper) | ~$50–80 | Cheap. Good for bench experiments. | Thin documentation. Unproven for a hanging load. |
 
 Recommendation: **build version 1 on Option A, and write the firmware with a drive
@@ -525,7 +548,7 @@ Other points:
 
 ### 5.1 Build on what, exactly
 
-I looked at the open-source CNC and cable-robot projects. None fits as a base, but
+The open-source CNC and cable-robot projects were reviewed. None fits as a base, but
 several are good references:
 
 | Project | What to take from it | Why not use it as is |
@@ -823,7 +846,7 @@ on a catch.
 | Q2 | Ball about 18 in across; face always to the audience (answered). **What will the whole head weigh?** How thick is the sphere's wall? | Winches are sized for 10 kg. The line is chosen once the head is weighed (section 4). |
 | Q3 | Pi Zero 2 W, projector in the neck with a mirror, Li-ion battery (answered). **Which projector?** Contacts or inductive charging on the dock? | Power budget, heat, and the dock design (section 4). |
 | Q4 | 3-axis from the start, or 2-axis first and 3-axis later? | Same hardware. Only commissioning order changes. |
-| Q5 | Option A (closed-loop steppers with brakes) or Option B (ODrive brushless with torque control)? | Cost, tuning effort and how tension is managed. I recommend A. |
+| Q5 | Option A (closed-loop steppers with brakes) or Option B (ODrive brushless with torque control)? | Cost, tuning effort and how tension is managed. A is the lead choice. Phase 3 tests one of each and decides. |
 | Q6 | How fast should it fly at most? | Sets drum size and motor choice. 0.3 m/s is assumed. |
 | Q7 | Can guests get near or under the workspace? Where will the operator stand? | Barricades, E-stop count and pendant cable length. |
 | Q8 | Design factor for the lines (theatre practice is often 8:1–10:1), and a line replacement schedule? | Line size, and so visibility. |
