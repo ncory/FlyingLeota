@@ -736,17 +736,84 @@ Site rules that make the numbers better:
 | Calibration drift (line creep, temperature) | Slowly growing tension mismatch | Re-home at the dock at the start of each show day. Tension trim. Low-stretch line. |
 | Wrong command from Show Controller | Unexpected move | Soft limits, workspace checks, Local mode, and SCMP's rules. Arming by schedule only if the device allows it (Q7). |
 
-## 8. Plan of work
+## 8. Plan of work: tests that settle the design
 
-| Phase | Work | Done when |
+Two tracks run side by side. The **motion track** doesn't need the head to be finished: the
+winches are sized for the heaviest likely head (10 kg), and dead weights stand in for it.
+The **head track** settles the payload: weight, center of weight, projector and power. They
+meet in Phase 4, on the full frame.
+
+```mermaid
+flowchart LR
+  P0["0. Buy bench parts"] --> P1["1. Bench electronics<br/>(ESP32-P4)"]
+  P0 --> P3["3. One-winch tests<br/>motor shootout, lines"]
+  P1 --> P3
+  P2["2. Simulation<br/>(any time)"] --> P4
+  H["Head track<br/>sphere, weight, projector,<br/>battery, dock charging"] --> P4
+  P3 -->|"motor type,<br/>line short list"| P4["4. Frame in the workshop<br/>4 winches, dummy head"]
+  P4 --> P5["5. Full scale<br/>real head, wind, failures"] --> P6["6. Site"]
+```
+
+### Motion track
+
+| Phase | Tests | Settles |
 | --- | --- | --- |
-| **0. Decide and measure** | Answer the open questions below. Measure the tent and set the frame size and pulley height. Weigh or estimate the head. Turn the tension script into a small sizing tool. Order the bench parts. | Frame size, head weight, workspace and motor choice are fixed. |
-| **1. Bench electronics** | P4 board, Ethernet, LVGL screens with fake data. The SCMP server, tested against Show Controller's SCMP client. E-stop chain with the safety relay on a test panel. One drive and motor. | Show Controller connects, arms, jogs and stops one motor. The E-stop drops power with the ESP32 unplugged. |
-| **2. Simulation** | Kinematics, profiles and state machine in C++, with unit tests. An SCMP-speaking simulator with a 3D view. | A timeline in Show Controller flies the simulated head. |
-| **3. One winch** | Drum, fairlead, tension sensor, brake sequencing. Line tests (stretch, creep, visibility against black). | Tension readings are steady, brakes hold the load, and a line is chosen. |
-| **4. Frame in the workshop** | The real 8 ft frame, built away from the tent, with four winches and a test weight in place of the ball. Tension trim, dock homing, workspace checks, the joystick from Show Controller. | Flies smoothly in 2-axis and 3-axis modes. Every fault in section 7 has been triggered on purpose. |
-| **5. Full scale** | Full frame, real head. Tuning. Wind tests (section 6). Failure tests: E-stop at full speed, unplug Ethernet, cut power, break a line on a dummy load. | Wind levels have real numbers. All failure tests pass. |
-| **6. Site and operation** | Install under the tent. Write the checklists: setup, daily start (inspect, home, test E-stops), weather checks, shutdown. Line replacement schedule. | A show runs from Show Controller with the operator on the pendant. |
+| **0. Buy bench parts** | See "What to buy now" below. | |
+| **1. Bench electronics** | Ethernet and an SCMP session with Show Controller's SCMP client. Touchscreen running. **Step pulses from the P4** on a logic analyzer: smooth at very slow speeds, no glitches while the screen and network are busy. A CAN link to the ODrive. One E-stop that cuts the 48 V supply through a contactor. | That one ESP32-P4 can do motion, network and screen together. Step pulses on the P4 are the least proven part (FastAccelStepper lists P4 support as experimental), so this test comes first. |
+| **2. Simulation** | Kinematics with the lean (section 4), profiles and state machine, unit-tested on a PC. An SCMP simulator. | Firmware structure. Needs no hardware. |
+| **3. One-winch tests** | A winch on the floor, a line up over a pulley at about 2.4 m (a beam or a temporary post), down to a dead weight. Water jugs or sandbags of 2, 5, 10 and 14 kg give line tensions across the full range (20–140 N). Run both motor types on the same rig. See below. | Motor type, drum size, brake size, and a short list of lines. |
+| **4. Frame in the workshop** | Buy three more winches of the chosen type. Build the real 8 ft frame. Fly a dummy head of the right weight and size (a cheap ball with weights inside, hung from a copy of the top fitting). Check that the lean and facing match the model. Dock homing, tension management, settling after moves, S-curve tuning, the joystick from Show Controller. | The control approach works. The final pin plan and I/O carrier board. |
+| **5. Full scale** | The real head. Wind tests with a fan or leaf blower (section 6). Failure tests: E-stop at full speed, unplug Ethernet, cut power, a line break on the dummy head. | Wind limits. Final line choice. |
+| **6. Site** | Install under the tent. Checklists. A show night run from Show Controller. | Ready for shows. |
+
+**Phase 3 in detail.** The same tests on the closed-loop stepper and the ODrive:
+
+| Test | How | Looking for |
+| --- | --- | --- |
+| Noise | A phone sound meter at 1 m, in a quiet room at night. Holding still, crawling (5 mm/s), cruising (0.1–0.3 m/s). | Whether it can be heard where the audience stands. |
+| Crawl smoothness | Slow-motion phone video of the weight, or a small accelerometer taped to it, at 2–10 mm/s. | Visible stepping or shiver. A floating head creeps slowly, so this matters most. |
+| Holding | 14 kg held for an hour. Motor temperature, position drift. | Heat and drift through a long show. |
+| Brake | Cut power while moving down with 10 kg. Measure the drop and the jolt. | That the brake holds, and the stop isn't too harsh. |
+| Tension reading | Load cell against known weights. On the ODrive, motor current against the load cell. | Whether the load cells are needed for control, or only as a check. |
+| Faults | Stall the motor on purpose. Pull the step signal. Drop the CAN link. | The drive raises an alarm, and the controller sees it. |
+| Lines | Candidate lines on the same rig: black braid at 100, 150 and 250 lb, clear monofilament, fluorocarbon. Stretch under load. Creep with 10 kg left hanging overnight. Length change when wet. 1,000 trips over the pulley and drum. | Stretch, creep and wear. |
+| Visibility | The lines hung against black curtain, at night, under the planned lighting, viewed from where the audience stands. Photographs from the audience's position. | Which lines disappear. The final size waits for the head's weight. |
+
+### Head track (runs in parallel)
+
+| Step | Work | Settles |
+| --- | --- | --- |
+| H1. The sphere | Buy the 18 in acrylic sphere early. It is the biggest single weight and sets the fittings. Weigh it, measure the wall, and check the hole at the top. | Sphere weight, and the top fitting design. |
+| H2. Projector | Pi Zero 2 W, candidate projectors, a mirror and a face blank on the bench. Brightness, throw, heat, power draw. | The projector, and the power budget. |
+| H3. Power | Battery and power-path board. Measure a 4-hour run. Dock charging (contacts or inductive), docking and lifting while video plays. | Battery size, charging method, no reboots on docking. |
+| H4. Weigh it | The full head on the spine, with wig, projector and battery. Weight, and where the center of weight is. | Payload: the final line size, and the lean model's real numbers. |
+
+### What to buy now
+
+The controller and a winch of each type don't depend on the head's final weight, so
+they can be bought now. About **$800–1,100** in all:
+
+| Part | About | Notes |
+| --- | --- | --- |
+| **Espressif ESP32-P4-Function-EV-Board, with the 7" LCD** | $55–90 | The LCD is optional in the package, so order the kit that includes it. 26 GPIOs on a 40-pin header: plenty for the bench. |
+| Closed-loop stepper, NEMA 23 about 3 N·m, with 24 V brake, and its drive | $150–250 | Option A. Check the brake holds at least 2 N·m. |
+| ODrive S1 + M8325s kit | $280–340 | Option B. The brake comes later, if B wins. |
+| 48 V supply (about 400 W), 24 V supply | $100–150 | |
+| ODrive brake resistor | $10–20 | Lowering a weight turns the motor into a generator. The energy has to go somewhere, or the supply voltage jumps. |
+| Beam load cell (20–50 kg) and HX711 amplifier | $15–30 | |
+| CAN transceiver module (3.3 V, e.g. SN65HVD230) | $5–10 | The P4 has CAN controllers but no transceiver. |
+| Level shifter or 26LS31 line driver for step/dir | $5–10 | The P4's 3.3 V outputs may be too weak for the drive's opto inputs. |
+| USB logic analyzer | $15–25 | To see the step pulses. |
+| Pulleys, bearings, a drum (3D printed is fine for testing), line samples | $60–120 | |
+| One E-stop button and a contactor | $40–80 | A test-bench version of the safety chain. |
+
+**Wait on:** the other three winches (until Phase 3 picks a type), the safety relay and
+final E-stops, the anemometer, frame material, and the final line size.
+
+**Bench safety:** a 14 kg weight on a test line is dangerous. Hang it over a padded area
+that nobody stands under. Add a second, slack safety line to the weight. Keep the E-stop in
+reach. Test the ODrive without a brake only with light weights, or with the weight resting
+on a catch.
 
 ## 9. Open questions
 
