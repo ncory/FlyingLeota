@@ -27,8 +27,9 @@ controller.
 | --- | --- |
 | Tent | About 8 ft × 8 ft (2.44 m). Pulleys at about 8 ft (2.44 m). The roof peaks higher, but pulleys up there would sit closer to the center and cut the travel, so 8 ft it is. |
 | Dock | A pedestal fixed to a table in the middle of the tent, its top 1.0 m off the floor. The head rests here when it isn't flying. |
-| Head | Lifesize, inside a clear sphere made to look like a crystal ball, about 18 in (0.46 m) across. Weight not known yet. |
-| On board | A projector and maybe LEDs, on a battery. No power through the lines: they stay as thin as possible. |
+| Head | Lifesize, inside a clear sphere made to look like a crystal ball, about 18 in (0.46 m) across. A large curly wig. Weight not known yet. |
+| Facing | **The face must always point towards the audience.** |
+| On board | A Raspberry Pi Zero 2 W drives a small wide-angle projector in the neck. A mirror throws the image onto the back of the face. Maybe LEDs. All on a lithium-ion battery. No power through the lines: they stay as thin as possible. Projector not chosen yet. |
 | Viewing | At night, in low light. The lines should vanish into the dark. |
 
 This is like the séance-room crystal ball: it sits on the table, rises, drifts and floats,
@@ -60,9 +61,10 @@ and settles back. That fits the space well, because the space is small (section 
   easy to reach, and the tops of the posts carry only pulleys.
 - Gravity keeps the lines tight. The head hangs below the pulleys. It can't go above
   their plane, and it gets harder to hold as it nears that plane or a corner (section 4).
-- The four lines attach to four points on a small frame hidden in the head (like the
-  corners of Spidercam's camera dolly). If they all went to one point, the head could
-  spin. With four points, it holds its heading.
+- The four lines attach to four points about 10 cm apart on a small fitting at the top
+  of the ball (like the corners of Spidercam's camera dolly, but much closer together). If
+  they all went to one point, the ball could spin. With four points, the face stays
+  towards the audience. Section 4 explains the spacing.
 - **The same hardware does both modes.** The 2-axis mode is a software setting: the
   depth axis is fixed at one value. Nothing is rebuilt to switch.
 
@@ -373,10 +375,10 @@ What this shows:
    down, the force that makes it rock grows with its weight, and so does the force that
    steadies it. They cancel out. The rocking period (about 1.3–2 times a second) hardly
    changes with weight either. What helps here is smooth S-curve moves (section 5.3).
-3. **Shape matters more than weight, and it's free.** A wider attachment ring and a low
-   center of weight (battery at the bottom) did more than doubling the weight. A 5 kg
-   head with a 0.3 m ring moves a third as much as one with a 0.16 m ring. Twist (the
-   face turning away) depends on the ring's width the most.
+3. **Shape matters more than weight, and it's free.** A low center of weight (battery
+   at the bottom) always helps. Spreading the attachment points wider cuts sway and
+   twist too, but it makes the ball lean when it's off center. See the next section: the
+   points should be about 10 cm apart, not 30 cm.
 4. **Weight has real costs:** thicker line (it grows with the square root of the weight,
    so double the weight is 1.4 times the thickness, and more visible), more to fall if
    something breaks, and more pull on the frame.
@@ -384,9 +386,59 @@ What this shows:
    table's, so a 5 kg head moves under a millimetre.
 
 **Recommendation:** aim for about **5–8 kg** from the parts themselves. Don't add ballast
-for stability: get it from a wide ring, a low battery and smooth moves first. Build the
+for stability: get it from a low battery, the right attachment spacing and smooth
+moves first. Build the
 winches for 10 kg so the weight doesn't hold up ordering. Choose the line once the head is
 weighed.
+
+### Keeping the face towards the audience
+
+A third model finds where the ball actually settles, given the four line lengths and
+gravity. Two results:
+
+- **Turning is not a problem.** Wherever the ball goes in the workspace, it stays square
+  to the audience to within 0.02°. A line 2 mm too long doesn't turn it measurably either.
+  The ball has no reason to turn: the layout is symmetrical, a round ball catches no
+  twisting wind, and when it does turn, the attachment points swing inwards and every
+  line gets longer, so gravity pulls it back.
+- **Leaning is the real effect.** Off center, the lines on the near side get steeper and
+  the far ones shallower. Their pull no longer balances around the ball, so it leans. How
+  much depends on how far apart the attachment points are:
+
+| Attachment points apart | Lean, 0.5 m to one side | Lean, far corner | Effort to turn the face 1° |
+| --- | --- | --- | --- |
+| One point | 0° | 0° | none: it spins freely |
+| 6 cm | 1.6° | 3.1° | 0.07 N·m |
+| **10 cm** | **2.6°** | **5.2°** | **0.11 N·m** |
+| 16 cm | 4.0° | 8.2° | 0.18 N·m |
+| 30 cm | 7.3° | 15.1° | 0.31 N·m |
+
+(5 kg head, center of weight 8 cm below the ball's center. Moving the weight to 15 cm
+below cuts the lean by about a sixth.)
+
+Spacing the points wider holds the face more firmly but makes the ball lean more. **About
+10 cm apart is the proposed balance.** A slight lean towards the side it drifts to may even
+look natural. The real twisting pushes are tiny, so 0.11 N·m per degree holds the face to a
+fraction of a degree.
+
+The firmware must model the lean. If it worked out line lengths as if the ball stayed
+level, the ball would land up to about 2 cm from where it was sent (section 5.3).
+
+### Inside the ball: a central spine
+
+The lines pull up to 140 N on the top fitting. Point loads like that can crack acrylic, so
+the sphere shouldn't carry them on its own. Proposed:
+
+- **A small top fitting**, black, about 10–12 cm across, holding the four line points.
+  It clamps through a hole at the top of the sphere.
+- **A spine** runs down from it, hidden in the wig, into the head. The head, projector,
+  mirror and battery all hang from the spine. The sphere is clamped to the same fitting,
+  so it adds no load path of its own.
+- **The battery goes at the bottom,** in or below the neck. It is the low center of
+  weight.
+- **A small base fitting** at the bottom of the sphere carries the charging pads or coil
+  (below) and seats the ball on the dock. A crystal ball on a stand looks right, so this
+  can be part of the look.
 
 Further points from the model:
 
@@ -418,17 +470,56 @@ Section 6 turns this into rules.
 
 ### Power on board
 
-- Battery: work it out from the projector's power draw and the length of an evening. A
-  10 W projector for 4 hours needs 40 Wh. Allow 50% more for LEDs and battery ageing.
-- **Charge on the dock:** spring-loaded contacts on the pedestal touch pads on the bottom of
-  the ball. It charges every time it lands. Low voltage only, and the controller cuts power to
-  the contacts unless the ball is docked.
-- A projector in a closed sphere gets hot. Plan hidden vents, or a projector small enough to
-  run cool.
-- If the projector's content needs cueing from Show Controller, a Pi Zero 2 W follower in
-  the ball could play it. That link would be Wi-Fi. It carries cues only, never motion,
-  and the follower plays its own copy of the media in sync. This is optional and separate
-  from the motion controller.
+Rough power budget (to firm up once the projector is chosen):
+
+| Load | Power |
+| --- | --- |
+| Raspberry Pi Zero 2 W playing video | about 1.5–2.5 W |
+| Small projector | about 2–10 W, by model and brightness |
+| LEDs | about 1–3 W |
+| **Total** | **about 5–15 W** |
+
+**A full-evening battery is light.** 4 hours at 15 W is 60 Wh. Add 25% for battery ageing
+and cold nights: about 75 Wh. A lithium-ion pack stores very roughly 150 Wh per kg, so
+that's about **0.5 kg**. A pack for 2 hours would save only about 0.25 kg. The ball should
+weigh 5–8 kg anyway, and weight at the bottom is the good kind. So a smaller pack buys
+almost nothing.
+
+**Recommendation: carry the full 4-hour pack, and charge on the dock as well.** The dock
+then tops the battery up between shows and charges it overnight. Nobody has to open the
+ball, and a long night or a cold one can't run it flat. The dock is a convenience, not
+something the show depends on.
+
+Charging on the dock, two ways:
+
+| Way | For | Against |
+| --- | --- | --- |
+| **Spring-loaded contacts** (gold-plated pogo pins on the pedestal, pads on the ball's base) | Simple. High power, so a fast top-up. | Exposed metal outdoors: dew and dirt. The pads must line up. |
+| **Inductive** (a Qi-style coil in the pedestal, another in the ball's base) | Nothing exposed. Works through the acrylic. Sealed. | Common modules give 5–15 W, so it's slower. The coils must be within a few millimetres of each other. The dock's seat lines them up. |
+
+Either is fine with a full-evening pack. Inductive suits a damp outdoor tent better.
+
+The controller switches dock power on only while the ball is seated and disarmed, and it
+reports the ball's charge if the Pi sends it.
+
+**Power path matters.** Many power banks cut their output for a moment when a charger is
+connected or disconnected. That would reboot the Pi every time the ball lands or lifts off.
+Use a battery board with proper power-path handling (a "UPS"-style board for the Pi, or a
+pack whose output never drops while charging). Test it by docking and lifting while video
+plays.
+
+Other points:
+
+- A projector in a closed sphere gets hot. Plan hidden vents, or a projector small enough
+  to run cool.
+- Projector candidates to evaluate: TI's DLPDLCR2000EVM (a tiny DLP projector board made
+  for a Raspberry Pi, 640×360, up to 30 lumens) and its bigger sibling DLPDLCR230NPEVM
+  (1080p, 100 lumens). Check that they work with a Zero 2 W, and check their throw and
+  power. In a dark scene, on a small face, 30 lumens may be enough.
+- The Pi Zero 2 W can be a **Show Controller follower** (design section 9). It plays its own
+  copy of the media, in sync with the show, and takes cues over Wi-Fi. If Wi-Fi drops, it
+  carries on by itself. Motion never depends on this link: the motion controller stays on
+  Ethernet.
 
 ## 5. Software
 
@@ -467,6 +558,11 @@ The motion task never waits on the network, the screen or flash.
 - **Inverse kinematics** (every 1 ms): for head position p, each line's length is the
   distance from its pulley exit point to its attachment point on the head, plus the
   arc wrapped on the pulley. Motor angle = length ÷ drum radius.
+- **The lean is part of the kinematics.** The ball leans a few degrees off center
+  (section 4), which moves the attachment points. Working on a PC, a model finds the
+  ball's resting pose and line lengths across the workspace. Those go into a table that
+  the controller looks up and interpolates. Without it, the ball would land up to about
+  2 cm off target, and the tension model would be wrong.
 - **Tension management:** a slow outer loop (10–50 Hz) compares measured tensions with
   the tensions the force model predicts. It then lengthens or shortens each line by a
   small amount to match. Large errors are faults (below).
@@ -657,8 +753,8 @@ Site rules that make the numbers better:
 | # | Question | Why it matters |
 | --- | --- | --- |
 | Q1 | Answered: 8 ft tent, pulleys at 8 ft, pedestal at 1.0 m. | Gives 0.68 m of rise and ±0.69 m sideways (section 4). |
-| Q2 | Ball about 18 in across (answered). **What will the whole head weigh?** How thick is the sphere's wall? Must the face stay towards the audience? | Winches are sized for 10 kg. The line is chosen once the head is weighed (section 4). |
-| Q3 | Projector and LEDs on a battery (answered). What projector, and how much power does it draw? Does its content need cues from Show Controller? | Battery size and weight, heat, and whether a follower rides in the ball. |
+| Q2 | Ball about 18 in across; face always to the audience (answered). **What will the whole head weigh?** How thick is the sphere's wall? | Winches are sized for 10 kg. The line is chosen once the head is weighed (section 4). |
+| Q3 | Pi Zero 2 W, projector in the neck with a mirror, Li-ion battery (answered). **Which projector?** Contacts or inductive charging on the dock? | Power budget, heat, and the dock design (section 4). |
 | Q4 | 3-axis from the start, or 2-axis first and 3-axis later? | Same hardware. Only commissioning order changes. |
 | Q5 | Option A (closed-loop steppers with brakes) or Option B (ODrive brushless with torque control)? | Cost, tuning effort and how tension is managed. I recommend A. |
 | Q6 | How fast should it fly at most? | Sets drum size and motor choice. 0.3 m/s is assumed. |
