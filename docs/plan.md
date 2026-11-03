@@ -25,9 +25,9 @@ controller.
 
 | Item | Value |
 | --- | --- |
-| Tent | About 8 ft × 8 ft (2.44 m). Pulleys at about 8 ft (2.44 m). |
-| Dock | A pedestal fixed to a table in the middle of the tent, its top 1–1.5 m off the floor. The head rests here when it isn't flying. |
-| Head | Lifesize, inside a clear sphere made to look like a crystal ball, up to about 2 ft (0.61 m) across. |
+| Tent | About 8 ft × 8 ft (2.44 m). Pulleys at about 8 ft (2.44 m). The roof peaks higher, but pulleys up there would sit closer to the center and cut the travel, so 8 ft it is. |
+| Dock | A pedestal fixed to a table in the middle of the tent, its top 1.0 m off the floor. The head rests here when it isn't flying. |
+| Head | Lifesize, inside a clear sphere made to look like a crystal ball, about 18 in (0.46 m) across. Weight not known yet. |
 | On board | A projector and maybe LEDs, on a battery. No power through the lines: they stay as thin as possible. |
 | Viewing | At night, in low light. The lines should vanish into the dark. |
 
@@ -92,7 +92,7 @@ stay the same length all evening. Choose the line by testing (Phase 3). For now:
 | --- | --- | --- | --- |
 | Nylon monofilament (clear) | Good at any color backdrop | High. Stretches noticeably under load, creeps, and **changes length when wet or humid**. | Needs constant re-trimming. Least suited to a damp outdoor tent. |
 | Fluorocarbon (clear) | Good | Lower than nylon, still meaningful | Stiff, and has memory on a drum. |
-| **Braided UHMWPE (Dyneema/Spectra) fishing line, black, about 150–250 lb test** | Thin (about 0.5–0.7 mm). Disappears against black. | Very low | **Recommended starting point.** Strong for its size. Spools well on a grooved drum. |
+| **Braided UHMWPE (Dyneema/Spectra) fishing line, black, about 125–250 lb test** (by head weight, section 4) | Thin (roughly 0.5–0.7 mm). Disappears against black. | Very low | **Recommended starting point.** Strong for its size. Spools well on a grooved drum. |
 
 Pick the line size from the loads in section 4. Theatre rigging commonly uses large design
 factors (often 8:1 to 10:1). Section 7 lists this as an open question.
@@ -138,11 +138,16 @@ between the ESP32 and the outside world:
 
 ### 3.2 Winches: motors and drives
 
-Load numbers come from section 4: with a 5 kg head, about 30–60 N per line in normal
-flight and over 100 N if the ball goes close to the pulleys. Design each winch for **150 N
-working**. With a 15 mm radius drum, that is 2.3 N·m. The space is small, so the head moves
-slowly: 0.3 m/s line speed is about 190 rpm at the drum. A NEMA 23 of 3 N·m or more does this
-directly, with no gearbox, because stepper torque is highest at low speed.
+Load numbers come from section 4. The head's weight isn't known yet, so **size the
+winches for a 10 kg head**: up to 140 N on a line at the worst spot in the workspace.
+Lighter heads then just run with more margin. With a 12 mm radius drum (24 mm across),
+140 N is 1.7 N·m. The space is small, so the head moves slowly: 0.3 m/s line speed is about
+240 rpm at the drum. A 3 N·m NEMA 23 does this directly, with no gearbox, because stepper
+torque is highest at low speed. Its brake must hold at least 2 N·m.
+
+Sizing for 10 kg instead of 5 kg costs little on the motor side: the same motor class, a
+smaller drum, and maybe $100–200 more across four winches. The real cost of a heavy head is
+thicker line (section 4).
 
 **A hanging load needs brakes.** If drive power drops (E-stop, power cut, fault), an
 unbraked motor lets the head fall. Use fail-safe brakes, which grip when power is
@@ -299,88 +304,117 @@ flowchart LR
 ## 4. The numbers that drive the design
 
 A quick static model (to become a proper sizing tool in Phase 0). It uses the real tent:
-pulleys at 2.44 m, set 8 cm in from each corner of the 8 ft square. The ball is 0.61 m
-across, and the four lines attach to a ring 0.24 m across on top of it.
+pulleys at 2.44 m, set 8 cm in from each corner of the 8 ft square. The ball is 0.46 m
+(18 in) across and rests on the pedestal at 1.0 m. The four lines attach to a ring 0.3 m
+across on top of the ball.
+
+### The space it can fly in
+
+| Limit | Value |
+| --- | --- |
+| Ball center when docked | about 1.23 m |
+| Highest ball center (top of ball 0.3 m below the pulleys) | about 1.91 m |
+| **Room to rise** | **about 0.68 m** |
+| **Sideways, each way from center** (0.3 m clear of the curtains) | **about ±0.69 m** |
+
+Once clear of the table, the ball can also come down beside it. Tensions climb fast as the
+top of the ball nears the pulleys, so the top limit is firm.
 
 ### What the head weighs
 
-The clear sphere alone is a big share of the weight. A 0.61 m acrylic sphere weighs:
+An 18 in acrylic sphere weighs:
 
 | Wall thickness | Sphere weight |
 | --- | --- |
-| 1.5 mm | 2.1 kg |
-| 2 mm | 2.8 kg |
-| 3 mm | 4.2 kg |
-| 4.5 mm | 6.3 kg |
+| 2 mm | 1.6 kg |
+| 3 mm | 2.3 kg |
+| 4.5 mm | 3.5 kg |
+| 6 mm | 4.7 kg |
 
-Add the head form, projector, battery, LEDs and the attachment ring. A total of **4–8 kg**
-is likely, so the model uses 5 kg. A heavier head is steadier in the wind but needs bigger
-lines and winches. Keep the battery low in the ball: a low center of weight hangs steadily
-under the attachment ring.
+Add the head form, projector, battery, LEDs and the attachment ring. Somewhere around
+**4–8 kg** is likely.
 
-### Line tensions (5 kg head)
+### Line tensions by head weight
 
-"Slackest line" is the highest that the loosest line can be held at. It shows how hard a
-breeze must push before a line goes loose. Every number scales with weight: an 8 kg head
-gives 1.6 times these.
+Tension scales with weight. Over the whole workspace, including gentle acceleration
+(0.5 m/s²), the worst line sees about **14 N per kg of head**. Resting just off the dock,
+each line carries about 4 N per kg.
 
-| Ball position | Gap from ball top to pulleys | Slackest line | Highest line |
+| Head | Each line, just off the dock | Worst line, anywhere | Line rating at 8:1 | Torque on a 12 mm drum |
+| --- | --- | --- | --- | --- |
+| 3 kg | 13 N | 41 N | ~75 lb | 0.5 N·m |
+| 5 kg | 21 N | 69 N | ~125 lb | 0.8 N·m |
+| 8 kg | 34 N | 110 N | ~200 lb | 1.3 N·m |
+| 10 kg | 42 N | 138 N | ~250 lb | 1.7 N·m |
+
+### Is heavier more stable?
+
+Yes, against things that push from outside. But only up to a point, and not against
+everything. A second model treats the ball as a rigid body on four stretchy lines (black
+braid, ball center at 1.6 m). It pushes the ball with a 22 mph (10 m/s) wind from the open
+front, which is 4.6 N on an 18 in ball.
+
+| Head | Ring 0.3 m across, weight 8 cm low: ball moves | Tilts | Twists, per small nudge* |
 | --- | --- | --- | --- |
-| Center | 0.64 m | 30 N | 30 N |
-| Center | 0.44 m | 42 N | 42 N |
-| Center | 0.28 m | 60 N | 60 N |
-| Center | 0.13 m | 115 N | 115 N |
-| 0.4 m to one side | 0.64 m | 22 N | 36 N |
-| 0.6 m off center, both ways (near a corner) | 0.64 m | 17 N | 39 N |
-| 0.4 m off center, both ways | 0.33 m | 39 N | 58 N |
+| 3 kg | 4.8 mm | 2.1° | 0.27° |
+| 5 kg | 3.3 mm | 1.3° | 0.16° |
+| 8 kg | 2.4 mm | 0.8° | 0.10° |
+| 12 kg | 1.9 mm | 0.5° | 0.07° |
+| 5 kg, but ring 0.16 m across, weight at the center | 10.7 mm | 3.1° | 0.28° |
 
-What follows from this:
+\* A 0.05 N·m twisting push, such as an off-center gust.
 
-1. **The space to fly in is small.** The ball is a quarter of the tent's width. Keep
-   0.3 m between the ball and the curtains. Its center can then move only about **±0.5–0.6
-   m** from the middle in each direction.
-2. **Height is the tightest limit.** Tensions climb fast as the top of the ball nears the
-   pulleys. Keep at least about 0.25–0.3 m between the ball top and the pulleys. The ball
-   then rises at most to a center height of about 1.85 m.
-3. **The pedestal height decides how far it can rise.** With the ball resting on the
-   pedestal:
+What this shows:
 
-   | Pedestal top | Ball center when docked | Room to rise |
-   | --- | --- | --- |
-   | 1.0 m | about 1.3 m | about 0.55 m |
-   | 1.25 m | about 1.55 m | about 0.3 m |
-   | 1.5 m | about 1.8 m | almost none |
+1. **Weight helps against outside pushes:** wind, a curtain brushing a line, a tug. Doubling
+   the weight cuts the movement by about a third to a half. The returns shrink: 3 → 5 kg
+   is a big step, while 8 → 12 kg barely shows.
+2. **Weight doesn't help with the ball's own moves.** When the ball speeds up or slows
+   down, the force that makes it rock grows with its weight, and so does the force that
+   steadies it. They cancel out. The rocking period (about 1.3–2 times a second) hardly
+   changes with weight either. What helps here is smooth S-curve moves (section 5.3).
+3. **Shape matters more than weight, and it's free.** A wider attachment ring and a low
+   center of weight (battery at the bottom) did more than doubling the weight. A 5 kg
+   head with a 0.3 m ring moves a third as much as one with a 0.16 m ring. Twist (the
+   face turning away) depends on the ring's width the most.
+4. **Weight has real costs:** thicker line (it grows with the square root of the weight,
+   so double the weight is 1.4 times the thickness, and more visible), more to fall if
+   something breaks, and more pull on the frame.
+5. **At sane wind levels, none of this is large.** At 10 mph the push is a fifth of the
+   table's, so a 5 kg head moves under a millimetre.
 
-   **The pedestal should be at the low end, 1.0 m or lower,** unless the pulleys can go
-   higher (see Q1). Once clear of the table, the ball can also come down beside it.
-4. **Tensions are moderate, and nothing is close to slack.** Even near a corner, the
-   slackest line keeps 17 N. Size for 150 N working per line (section 3.2).
-5. **Four lines, three axes: one line too many.** With all four lines set by position,
-   a few millimetres of error in anchor positions or line length either makes one line
-   go slack or makes them fight each other. The lines must be **tension-managed**, not just
-   position-controlled. Maslow 4 (four belts, ESP32) and Hangprinter (four lines) both
-   ran into this. Section 3.2 explains how the two motor options handle it. Section 5.3
-   has the firmware side.
-6. **The posts take an inward pull** of up to about 100 N each, sideways at the top. The
-   frame needs diagonal braces or a top rectangle that ties the posts together.
+**Recommendation:** aim for about **5–8 kg** from the parts themselves. Don't add ballast
+for stability: get it from a wide ring, a low battery and smooth moves first. Build the
+winches for 10 kg so the weight doesn't hold up ordering. Choose the line once the head is
+weighed.
+
+Further points from the model:
+
+- **Four lines, three axes: one line too many.** With all four lines set by position,
+  a few millimetres of error in anchor positions or line length either makes one line
+  go slack or makes them fight each other. The lines must be **tension-managed**, not just
+  position-controlled. Maslow 4 (four belts, ESP32) and Hangprinter (four lines) both
+  ran into this. Section 3.2 explains how the two motor options handle it. Section 5.3
+  has the firmware side.
+- **The posts take an inward pull** of up to about 140 N each (10 kg head), sideways at the
+  top. The frame needs diagonal braces or a top rectangle that ties the posts together.
+- **Low-stretch line matters.** With nylon monofilament the ball moves about twice as far
+  in the same wind, and it bounces at a lower frequency.
 
 ### Wind on the ball
 
-A smooth 0.61 m sphere (drag coefficient about 0.47) catches:
+A smooth 18 in sphere (drag coefficient about 0.47) catches:
 
 | Wind | Force on the ball | Share of a 5 kg head's weight |
 | --- | --- | --- |
-| 3 m/s (7 mph) | 0.7 N | 1% |
-| 5 m/s (11 mph) | 2.1 N | 4% |
-| 7 m/s (16 mph) | 4.0 N | 8% |
-| 10 m/s (22 mph) | 8.2 N | 17% |
-| 12 m/s (27 mph) | 11.9 N | 24% |
+| 4.5 m/s (10 mph) | 0.9 N | 2% |
+| 7 m/s (16 mph) | 2.3 N | 5% |
+| 10 m/s (22 mph) | 4.6 N | 9% |
 
 The lines won't go slack at any of these. The real limit is how it looks: the ball sways
-and rocks, the curtains billow towards it, and the posts move. A wide attachment ring and
-a low center of weight cut the rocking. Wind inside a tent closed on three sides is much
-lower than outside, except when it blows straight in the open front. Section 6 turns this
-into rules.
+and rocks, the curtains billow towards it, and the posts move. Wind inside a tent closed on
+three sides is much lower than outside, except when it blows straight in the open front.
+Section 6 turns this into rules.
 
 ### Power on board
 
@@ -622,8 +656,8 @@ Site rules that make the numbers better:
 
 | # | Question | Why it matters |
 | --- | --- | --- |
-| Q1 | Tent: 8 ft × 8 ft, pulleys at 8 ft (answered). **Does the roof peak higher than 8 ft?** Could the pulleys go there? Could the pedestal be lower than 1 m? | Every extra 0.1 m between pedestal and pulleys is 0.1 m more rise (section 4). |
-| Q2 | Ball up to 2 ft across (answered). **What will the whole head weigh,** with sphere, projector and battery? How thick is the sphere's wall? Must the face stay towards the audience? | Lines, motors and wind numbers all scale with weight. 5 kg is assumed. |
+| Q1 | Answered: 8 ft tent, pulleys at 8 ft, pedestal at 1.0 m. | Gives 0.68 m of rise and ±0.69 m sideways (section 4). |
+| Q2 | Ball about 18 in across (answered). **What will the whole head weigh?** How thick is the sphere's wall? Must the face stay towards the audience? | Winches are sized for 10 kg. The line is chosen once the head is weighed (section 4). |
 | Q3 | Projector and LEDs on a battery (answered). What projector, and how much power does it draw? Does its content need cues from Show Controller? | Battery size and weight, heat, and whether a follower rides in the ball. |
 | Q4 | 3-axis from the start, or 2-axis first and 3-axis later? | Same hardware. Only commissioning order changes. |
 | Q5 | Option A (closed-loop steppers with brakes) or Option B (ODrive brushless with torque control)? | Cost, tuning effort and how tension is managed. I recommend A. |
