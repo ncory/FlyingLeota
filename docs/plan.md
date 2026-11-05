@@ -10,8 +10,8 @@ needs a yes from Nate before it is built.
 ## Summary
 
 - **The prop:** a lifesize head inside a 14 in (0.36 m) clear crystal ball, likely 3–5 kg.
-  It rests on a pedestal 1.0 m up, in the middle of a rigid metal gazebo. It rises about
-  18 in (0.45 m) and drifts about ±27 in (0.68 m) each way, always facing the audience. A
+  It rests on a pedestal 0.75 m up, in the middle of a rigid metal gazebo. It rises about
+  24 in (0.6 m) and drifts about ±27 in (0.68 m) each way, always facing the audience. A
   projector, a Raspberry Pi Zero 2 W and a battery ride inside.
 - **The rig:** four winches at the bases of the gazebo's four corner poles. Each line runs
   up its pole, over a pulley at 79 in (91 in apart) and down to a small fitting on top of
@@ -49,9 +49,9 @@ controller.
 | Item | Value |
 | --- | --- |
 | Structure | A gazebo: a rigid metal frame that can be broken down. It can carry the rig directly, with stakes or weights added to the four corner poles if needed. No separate truss. Curtains close 3 sides. |
-| Pick points | 91 in (2.31 m) apart, assumed the same in both directions. Pulleys can go from 70 in (1.78 m) to 79 in (2.01 m) above the deck. The plan uses 79 in. |
-| Roof | 100 in (2.54 m) inside at the peak. |
-| Dock | A pedestal fixed to a table in the middle of the gazebo, its top 1.0 m (39 in) off the deck. The head rests here when it isn't flying. |
+| Pick points | A square: the post centers are 91 in (2.31 m) apart both ways. The posts are 70 in (1.78 m) tall. A metal corner piece of the roof frame runs straight up from each post top to 79 in (2.01 m). The pulleys mount at the top of those corner pieces, directly above the post centers. |
+| Roof | A hardtop pyramid roof with a small raised vent tier at the top, like a typical grill or patio gazebo. Rafters run from each corner up to the center. 100 in (2.54 m) inside at the peak. |
+| Dock | A pedestal fixed to a table in the middle of the gazebo, its top 0.75 m (30 in) off the deck. The head rests here when it isn't flying. |
 | Head | Lifesize, inside a clear sphere made to look like a crystal ball, 13–14 in (0.33–0.36 m) across. A large curly wig. Weight not known yet. This year's head is fixed on the pedestal, with front projection onto a blank face. A flying head needs the projector inside instead, so the image moves with it. |
 | Facing | **The face must always point towards the audience.** |
 | On board | A Raspberry Pi Zero 2 W drives a small wide-angle projector in the neck. A mirror throws the image onto the back of the face. Maybe LEDs. All on a lithium-ion battery. No power through the lines: they stay as thin as possible. Projector not chosen yet. |
@@ -79,8 +79,8 @@ and settles back. That fits the space well, because the space is small (section 
                      ▲  audience looks in from the front (open side)
 ```
 
-- The gazebo's four corner poles, 91 in apart. Each has a pulley at 79 in. Seen from
-  above, the head is always inside that square.
+- The gazebo's four corner posts, 91 in apart. Each has a pulley at 79 in, on the roof's
+  corner piece above the post. Seen from above, the head is always inside that square.
 - Each line runs from a winch at the **base** of its post, up the post, over the top
   pulley, and down to the head. Skycam does the same thing. Heavy parts stay low and
   easy to reach, and the tops of the posts carry only pulleys.
@@ -107,7 +107,7 @@ Why not the other layouts:
 The gazebo is a rigid metal frame, so the pulleys and winches mount on it directly. No
 separate truss is needed. Two things to check, because if the poles move, the head moves:
 
-- **Inward pull.** The lines pull each pole top towards the center, by up to about 120 N
+- **Inward pull.** The lines pull each corner towards the center, by up to about 120 N
   for a 5 kg head at the top of its travel (section 4). Test it before building: run a
   ratchet strap with a luggage scale between two opposite corners at 79 in, pull to about
   150 N, and measure how far the corners move. A few millimetres is fine. More than that
@@ -116,8 +116,9 @@ separate truss is needed. Two things to check, because if the poles move, the he
   the legs, as Nate suggested. The tension-swing check (section 6) notices if the frame
   is moving.
 
-Each winch clamps to the bottom of its pole. The line runs up the pole through small
-guides to the pulley at the top.
+Each winch clamps to the bottom of its post. The line runs straight up the post through
+small guides to the pulley on the corner piece at 79 in. The corner, where the post, the
+beams and the rafter meet, is the strongest point of the frame, which suits the pull.
 
 ### Lines
 
@@ -128,7 +129,7 @@ stay the same length all evening. Choose the line by testing (Phase 3). For now:
 | --- | --- | --- | --- |
 | Nylon monofilament (clear) | Good at any color backdrop | High. Stretches noticeably under load, creeps, and **changes length when wet or humid**. | Needs constant re-trimming. Least suited to a damp outdoor gazebo. |
 | Fluorocarbon (clear) | Good | Lower than nylon, still meaningful | Stiff, and has memory on a drum. |
-| **Braided UHMWPE (Dyneema/Spectra) fishing line, black, about 130–265 lb test** (by head weight, section 4) | Thin (roughly 0.5–0.7 mm). Disappears against black. | Very low | **Recommended starting point.** Strong for its size. Spools well on a grooved drum. |
+| **Braided UHMWPE (Dyneema/Spectra) fishing line, black, about 90–265 lb test** (by head weight and top clearance, section 4) | Thin (roughly 0.5–0.7 mm). Disappears against black. | Very low | **Recommended starting point.** Strong for its size. Spools well on a grooved drum. |
 
 Pick the line size from the loads in section 4. Theatre rigging commonly uses large design
 factors (often 8:1 to 10:1). Section 7 lists this as an open question.
@@ -343,41 +344,43 @@ flowchart LR
 
 A quick static model (to become a proper sizing tool in Phase 0). It uses the gazebo:
 pulleys 91 in (2.31 m) apart at 79 in (2.01 m). The ball is 14 in (0.36 m) across and
-rests on the pedestal at 1.0 m. The four lines attach to points 10 cm apart on top of
+rests on the pedestal at 0.75 m. The four lines attach to points 10 cm apart on top of
 the ball.
 
 ### The space it can fly in
 
 | Limit | Value |
 | --- | --- |
-| Ball center when docked | about 1.18 m (46 in) |
-| Top of the ball when docked | about 1.36 m (53 in): 0.65 m (26 in) below the pulleys |
+| Ball center when docked | about 0.93 m (37 in) |
+| Top of the ball when docked | about 1.11 m (44 in): 0.90 m (35 in) below the pulleys |
 | **Sideways, each way from center** (0.3 m clear of the curtains) | **about ±0.68 m (±27 in)** |
-| **Room to rise** | **about 0.35–0.50 m (14–20 in)**, depending on how close to the pulleys it may go (below) |
+| **Room to rise** | **about 24–28 in (0.6–0.7 m)**, depending on how close to the pulleys it may go (below) |
 
 Once clear of the table, the ball can also come down beside it.
 
-**Height is the scarce thing.** Lines get shallower as the ball nears the pulleys, and
+**Height costs line size.** Lines get shallower as the ball nears the pulleys, and
 shallow lines pull much harder. So the closer the ball may go to the pulleys, the higher
 it rises, but the harder every line pulls:
 
 | Top of ball kept below the pulleys | Room to rise | Worst line pull, per kg of head |
 | --- | --- | --- |
-| 0.30 m (12 in) | 14 in (0.35 m) | 17 N |
-| **0.20 m (8 in)** | **18 in (0.45 m)** | **24 N** |
-| 0.15 m (6 in) | 20 in (0.50 m) | 32 N |
+| **0.30 m (12 in)** | **24 in (0.60 m)** | **17 N** |
+| 0.20 m (8 in) | 28 in (0.70 m) | 24 N |
+| 0.15 m (6 in) | 30 in (0.75 m) | 32 N |
 
-The plan uses **0.20 m (8 in)**, so 18 in of rise. Ways to get more:
+**Proposed: start with 12 in of clearance, so 24 in of rise.** That keeps the line thin.
+The winches are sized for 8 in of clearance, so if the line tests show a thicker line
+still hides well, the limit can come down later. That is a setting, not a rebuild.
 
-- **Mount the pulleys at 79 in, not 70 in.** At 70 in the ball could rise only 5–11 in.
-  Every inch of pulley height is an inch of rise.
-- **Lower the pedestal.** Every inch lower is an inch more rise.
-- **Pulleys partway up the roof.** If the roof is a hip roof, with rafters running from the
-  corners up to the peak, pulleys on those rafters sit higher. Assuming a straight roof
-  from 79 in at the corners to 100 in at the peak, 15 cm in along a rafter gains about 2 in
-  of rise, and 30 cm in gains about 4 in. That moves the pulleys inwards a little, which
-  doesn't matter here: the curtains limit sideways travel first. This needs a look at the
-  real roof (see Q1).
+What sets the rise:
+
+- **Pulleys at 79 in, on the corner pieces.** At the 70 in post tops, the ball would
+  lose 9 in of rise.
+- **The pedestal at 0.75 m.** That gives 10 in more rise than 1.0 m did. Every inch lower
+  is an inch more.
+- **Pulleys up the rafters: not worth it.** Moving them 15–30 cm up the rafters gains only
+  2–3 in. It needs an extra pulley at each corner to turn the line, and it puts the pull
+  into the middle of a thin rafter instead of the strong corner.
 
 ### What the head weighs
 
@@ -394,20 +397,19 @@ Add the head form, wig, projector, Pi, mirror, battery and the fittings. Somewhe
 
 ### Line tensions by head weight
 
-Tension scales with weight. With the top limit at 0.20 m, over the whole workspace and
-including gentle acceleration (0.5 m/s²), the worst line sees about **24 N per kg of head**.
-Resting just off the dock, each line carries about 6 N per kg.
+Tension scales with weight. Over the whole workspace, including gentle acceleration
+(0.5 m/s²), the worst line pulls about **17 N per kg of head with 12 in of clearance**, or
+24 N per kg with 8 in. Resting just off the dock, each line carries about 5 N per kg.
 
-| Head | Each line, just off the dock | Worst line, anywhere | Line rating at 8:1 | Torque on a 12 mm drum |
+| Head | Worst line, 12 in clearance | Line rating at 8:1 | Worst line, 8 in clearance | Line rating at 8:1 |
 | --- | --- | --- | --- | --- |
-| 3 kg | 19 N | 73 N | ~130 lb | 0.9 N·m |
-| 4 kg | 26 N | 98 N | ~175 lb | 1.2 N·m |
-| 5 kg | 32 N | 122 N | ~220 lb | 1.5 N·m |
-| 6 kg | 38 N | 146 N | ~265 lb | 1.8 N·m |
+| 3 kg | 50 N | ~90 lb | 73 N | ~130 lb |
+| 4 kg | 67 N | ~120 lb | 98 N | ~175 lb |
+| 5 kg | 84 N | ~150 lb | 122 N | ~220 lb |
+| 6 kg | 100 N | ~180 lb | 146 N | ~265 lb |
 
-The worst pull only happens at the very top of the travel. If the show rarely goes there,
-the top limit can stay at 0.20 m but with slower moves near it. If the line ends up too
-thick to hide, lower the top limit: at 0.30 m every number above drops by about 30%.
+The winches are sized for the last cell: 146 N, which is 1.8 N·m on a 12 mm drum. The worst
+pull only happens at the very top of the travel and the far corners.
 
 ### Is heavier more stable?
 
@@ -418,10 +420,10 @@ front, which is 2.8 N on a 14 in ball.
 
 | Head | Ball moves | Tilts | Twists, per small nudge* |
 | --- | --- | --- | --- |
-| 2 kg | 11.7 mm | 4.1° | 0.77° |
-| 3 kg | 7.9 mm | 2.7° | 0.52° |
-| 4 kg | 6.1 mm | 2.0° | 0.39° |
-| 6 kg | 4.2 mm | 1.4° | 0.26° |
+| 2 kg | 11.9 mm | 4.3° | 1.1° |
+| 3 kg | 8.1 mm | 2.9° | 0.72° |
+| 4 kg | 6.2 mm | 2.2° | 0.54° |
+| 6 kg | 4.3 mm | 1.4° | 0.36° |
 
 \* A 0.05 N·m twisting push, such as an off-center gust. Attachment points 10 cm apart,
 center of weight 5 cm below the ball's center.
@@ -464,16 +466,16 @@ gravity. Two results:
 | Attachment points apart | Lean, 0.5 m to one side | Lean, 0.5 m both ways | Lean, low far corner | Effort to turn the face 1° |
 | --- | --- | --- | --- | --- |
 | One point | 0° | 0° | 0° | none: it spins freely |
-| 6 cm | 2.0° | 2.9° | 3.7° | 0.08 N·m |
-| **10 cm** | **3.0°** | **4.6°** | **6.0°** | **0.13 N·m** |
-| 16 cm | 4.5° | 7.0° | 9.3° | 0.20 N·m |
+| 6 cm | 2.1° | 3.1° | 3.8° | 0.06 N·m |
+| **10 cm** | **3.3°** | **4.9°** | **6.2°** | **0.09 N·m** |
+| 16 cm | 5.0° | 7.7° | 9.8° | 0.15 N·m |
 
 (4 kg head, center of weight 5 cm below the ball's center. A lower center of weight cuts
 the lean a little.)
 
 Spacing the points wider holds the face more firmly but makes the ball lean more. **About
 10 cm apart is the proposed balance.** A slight lean towards the side it drifts to may even
-look natural. The real twisting pushes are tiny, so 0.13 N·m per degree holds the face to a
+look natural. The real twisting pushes are tiny, so 0.09 N·m per degree holds the face to a
 fraction of a degree.
 
 The firmware must model the lean. If it worked out line lengths as if the ball stayed
@@ -503,8 +505,8 @@ Further points from the model:
   position-controlled. Maslow 4 (four belts, ESP32) and Hangprinter (four lines) both
   ran into this. Section 3.2 explains how the two motor options handle it. Section 5.3
   has the firmware side.
-- **The gazebo's pole tops take an inward pull** of up to about 120 N each (5 kg head, at
-  the top of the travel). Section 2 has a simple test for it.
+- **The gazebo's corners take an inward pull** of up to about 85 N each (5 kg head, 12 in
+  of clearance), or 120 N with 8 in. Section 2 has a simple test for it.
 - **Low-stretch line matters.** With nylon monofilament the ball moves about twice as far
   in the same wind, and it bounces at a lower frequency.
 
@@ -874,7 +876,7 @@ on a catch.
 
 | # | Question | Why it matters |
 | --- | --- | --- |
-| Q1 | Measured: pick points 91 in apart at 70–79 in, roof 100 in, pedestal at 1.0 m. **Please confirm:** is it 91 in in both directions? Can the pulleys go anywhere from 70 to 79 in (the plan uses 79)? Is the roof a hip roof with rafters from the corners to the peak? Could the pedestal be lower? | Pulley height and pedestal height set the rise: 18 in at 79 in, only 5–11 in at 70 in (section 4). |
+| Q1 | Answered: a square, post centers 91 in apart; pulleys on the corner pieces at 79 in; hardtop pyramid roof, 100 in at the peak; pedestal at 0.75 m. | 24 in of rise with 12 in of clearance (section 4). |
 | Q2 | Ball 13–14 in across; face always to the audience (answered). **What will the whole head weigh?** What does this year's ball weigh? | Winches are sized for 6 kg. The line is chosen once the head is weighed (section 4). |
 | Q3 | Pi Zero 2 W, projector in the neck with a mirror, Li-ion battery (answered). **Which projector?** Contacts or inductive charging on the dock? | Power budget, heat, and the dock design (section 4). |
 | Q4 | 3-axis from the start, or 2-axis first and 3-axis later? | Same hardware. Only commissioning order changes. |
