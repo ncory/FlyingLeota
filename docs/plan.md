@@ -9,13 +9,13 @@ needs a yes from Nate before it is built.
 
 ## Summary
 
-- **The prop:** a lifesize head inside an 18 in (0.46 m) clear crystal ball, likely 5–8 kg.
-  It rests on a pedestal 1.0 m up, in the middle of an 8 ft × 8 ft tent. It rises about
-  0.68 m and drifts about ±0.69 m each way, always facing the audience. A projector,
-  a Raspberry Pi Zero 2 W and a battery ride inside.
-- **The rig:** four winches at the bases of four corner posts. Each line runs up its post,
-  over a pulley at 8 ft and down to a small fitting on top of the ball, like Skycam. The
-  same hardware flies in 3 axes, or in a fixed depth plane.
+- **The prop:** a lifesize head inside a 14 in (0.36 m) clear crystal ball, likely 3–5 kg.
+  It rests on a pedestal 1.0 m up, in the middle of a rigid metal gazebo. It rises about
+  18 in (0.45 m) and drifts about ±27 in (0.68 m) each way, always facing the audience. A
+  projector, a Raspberry Pi Zero 2 W and a battery ride inside.
+- **The rig:** four winches at the bases of the gazebo's four corner poles. Each line runs
+  up its pole, over a pulley at 79 in (91 in apart) and down to a small fitting on top of
+  the ball, like Skycam. The same hardware flies in 3 axes, or in a fixed depth plane.
 - **The controller:** an ESP32-P4 board with wired Ethernet and a 7 in touchscreen. Show
   Controller drives it over SCMP as three axes: x, y and z. The touchscreen shows status
   and has local controls: remote on/off, arm, home, park and stop.
@@ -38,19 +38,21 @@ needs a yes from Nate before it is built.
 | G2 | Show Controller drives it over Ethernet with SCMP. No Wi-Fi anywhere in the control path. |
 | G3 | A local touchscreen shows status. It also has controls to enable or disable remote control, arm and disarm, home, park and stop. |
 | G4 | At least two hardwired emergency stops. They work even if the software is dead. |
-| G5 | It runs outdoors under a tent, enclosed on 3 sides and seen from 1 side. It has clear wind rules and enforces them itself. |
+| G5 | It runs outdoors in a gazebo, enclosed on 3 sides and seen from 1 side. It has clear wind rules and enforces them itself. |
 
 Non-goals for version 1: turning or tilting the head, and more than one flying object.
 The head's own projector and LEDs run on their own battery and are not part of the motion
 controller.
 
-### Site and prop (from Nate, 2026-11-03)
+### Site and prop (from Nate, measured on this year's setup, 2026-11-05)
 
 | Item | Value |
 | --- | --- |
-| Tent | About 8 ft × 8 ft (2.44 m). Pulleys at about 8 ft (2.44 m). The roof peaks higher, but pulleys up there would sit closer to the center and cut the travel, so 8 ft it is. |
-| Dock | A pedestal fixed to a table in the middle of the tent, its top 1.0 m off the floor. The head rests here when it isn't flying. |
-| Head | Lifesize, inside a clear sphere made to look like a crystal ball, about 18 in (0.46 m) across. A large curly wig. Weight not known yet. |
+| Structure | A gazebo: a rigid metal frame that can be broken down. It can carry the rig directly, with stakes or weights added to the four corner poles if needed. No separate truss. Curtains close 3 sides. |
+| Pick points | 91 in (2.31 m) apart, assumed the same in both directions. Pulleys can go from 70 in (1.78 m) to 79 in (2.01 m) above the deck. The plan uses 79 in. |
+| Roof | 100 in (2.54 m) inside at the peak. |
+| Dock | A pedestal fixed to a table in the middle of the gazebo, its top 1.0 m (39 in) off the deck. The head rests here when it isn't flying. |
+| Head | Lifesize, inside a clear sphere made to look like a crystal ball, 13–14 in (0.33–0.36 m) across. A large curly wig. Weight not known yet. This year's head is fixed on the pedestal, with front projection onto a blank face. A flying head needs the projector inside instead, so the image moves with it. |
 | Facing | **The face must always point towards the audience.** |
 | On board | A Raspberry Pi Zero 2 W drives a small wide-angle projector in the neck. A mirror throws the image onto the back of the face. Maybe LEDs. All on a lithium-ion battery. No power through the lines: they stay as thin as possible. Projector not chosen yet. |
 | Viewing | At night, in low light. The lines should vanish into the dark. |
@@ -77,8 +79,8 @@ and settles back. That fits the space well, because the space is small (section 
                      ▲  audience looks in from the front (open side)
 ```
 
-- Four posts at the corners of a rectangle. Each has a pulley at the top. Seen from
-  above, the head is always inside that rectangle.
+- The gazebo's four corner poles, 91 in apart. Each has a pulley at 79 in. Seen from
+  above, the head is always inside that square.
 - Each line runs from a winch at the **base** of its post, up the post, over the top
   pulley, and down to the head. Skycam does the same thing. Heavy parts stay low and
   easy to reach, and the tops of the posts carry only pulleys.
@@ -96,17 +98,26 @@ Why not the other layouts:
 | Layout | Axes | Problem for this prop |
 | --- | --- | --- |
 | 2 lines from the top (a "polargraph") | 2 | Nothing holds the depth. A breeze from the open side swings it like a pendulum. |
-| 2 lines from the top and 2 from the floor, in one plane | 2 | Stiff side to side, but depth is held only by line tension. That is the direction the wind blows through an open tent front. The floor lines are also in the scene. |
+| 2 lines from the top and 2 from the floor, in one plane | 2 | Stiff side to side, but depth is held only by line tension. That is the direction the wind blows through an open gazebo front. The floor lines are also in the scene. |
 | 8 lines (fully held) | 3 + turning | Twice the hardware. Lines cross the scene from below. |
 | **4 lines from the top (Skycam)** | **3, or 2** | **Recommended.** Front and back lines hold the depth directly. |
 
-### The frame must not be the tent
+### Mounting on the gazebo
 
-Put the pulleys on their own freestanding frame inside the tent, not on the tent
-poles. Tent frames move in the wind, and the lines pull inward on whatever holds them.
-If the posts move, the head moves. At 8 ft, a frame of aluminum extrusion or steel
-strut channel works well: four posts, a rectangle tying their tops together, and wide
-ballasted feet. Section 4 gives the loads.
+The gazebo is a rigid metal frame, so the pulleys and winches mount on it directly. No
+separate truss is needed. Two things to check, because if the poles move, the head moves:
+
+- **Inward pull.** The lines pull each pole top towards the center, by up to about 120 N
+  for a 5 kg head at the top of its travel (section 4). Test it before building: run a
+  ratchet strap with a luggage scale between two opposite corners at 79 in, pull to about
+  150 N, and measure how far the corners move. A few millimetres is fine. More than that
+  needs a brace.
+- **Wind on the roof.** The canopy catches wind and can rock the frame. Stake or weight
+  the legs, as Nate suggested. The tension-swing check (section 6) notices if the frame
+  is moving.
+
+Each winch clamps to the bottom of its pole. The line runs up the pole through small
+guides to the pulley at the top.
 
 ### Lines
 
@@ -115,9 +126,9 @@ stay the same length all evening. Choose the line by testing (Phase 3). For now:
 
 | Line | Visibility | Stretch and creep | Notes |
 | --- | --- | --- | --- |
-| Nylon monofilament (clear) | Good at any color backdrop | High. Stretches noticeably under load, creeps, and **changes length when wet or humid**. | Needs constant re-trimming. Least suited to a damp outdoor tent. |
+| Nylon monofilament (clear) | Good at any color backdrop | High. Stretches noticeably under load, creeps, and **changes length when wet or humid**. | Needs constant re-trimming. Least suited to a damp outdoor gazebo. |
 | Fluorocarbon (clear) | Good | Lower than nylon, still meaningful | Stiff, and has memory on a drum. |
-| **Braided UHMWPE (Dyneema/Spectra) fishing line, black, about 125–250 lb test** (by head weight, section 4) | Thin (roughly 0.5–0.7 mm). Disappears against black. | Very low | **Recommended starting point.** Strong for its size. Spools well on a grooved drum. |
+| **Braided UHMWPE (Dyneema/Spectra) fishing line, black, about 130–265 lb test** (by head weight, section 4) | Thin (roughly 0.5–0.7 mm). Disappears against black. | Very low | **Recommended starting point.** Strong for its size. Spools well on a grooved drum. |
 
 Pick the line size from the loads in section 4. Theatre rigging commonly uses large design
 factors (often 8:1 to 10:1). Section 7 lists this as an open question.
@@ -164,15 +175,17 @@ between the ESP32 and the outside world:
 ### 3.2 Winches: motors and drives
 
 Load numbers come from section 4. The head's weight isn't known yet, so **size the
-winches for a 10 kg head**: up to 140 N on a line at the worst spot in the workspace.
-Lighter heads then just run with more margin. With a 12 mm radius drum (24 mm across),
-140 N is 1.7 N·m. The space is small, so the head moves slowly: 0.3 m/s line speed is about
+winches for a 6 kg head**: up to about 150 N on a line at the worst spot in the workspace.
+The ball is lighter than first assumed, but the gazebo's low pulleys make the lines
+shallower, and shallow lines pull harder. So the winch size comes out about the same.
+Lighter heads just run with more margin. With a 12 mm radius drum (24 mm across),
+150 N is 1.8 N·m. The space is small, so the head moves slowly: 0.3 m/s line speed is about
 240 rpm at the drum. A 3 N·m NEMA 23 does this directly, with no gearbox, because stepper
 torque is highest at low speed. Its brake must hold at least 2 N·m.
 
-Sizing for 10 kg instead of 5 kg costs little on the motor side: the same motor class, a
-smaller drum, and maybe $100–200 more across four winches. The real cost of a heavy head is
-thicker line (section 4).
+Sizing with margin costs little on the motor side: the same motor class and a smaller
+drum. The real cost of a heavy head, or of flying close to the pulleys, is thicker line
+(section 4).
 
 **A hanging load needs brakes.** If drive power drops (E-stop, power cut, fault), an
 unbraked motor lets the head fall. Use fail-safe brakes, which grip when power is
@@ -304,7 +317,7 @@ flowchart LR
 
 ### 3.5 Wind sensor
 
-- An RS-485 Modbus anemometer at the head's height, at the open side of the tent. A cup
+- An RS-485 Modbus anemometer at the head's height, at the open side of the gazebo. A cup
   type (for example DFRobot SEN0483, under $100) is fine to start. Many cheap ones don't
   report gusts, so the firmware computes gusts itself from fast readings.
 - An ultrasonic sensor (no moving parts, reports gusts) is the upgrade: ~$300–900.
@@ -323,96 +336,116 @@ flowchart LR
 | Anemometer | $50–900 |
 | Drums, pulleys, bearings, fairleads, mounts, line | $200–400 |
 | Enclosure, cable, connectors | $200–400 |
-| Frame (rented truss or built) | $300–1,500+ |
-| **Total** | **about $2,000–5,000** |
+| Brackets and clamps for the gazebo poles | $100–300 |
+| **Total** | **about $1,800–4,000** |
 
 ## 4. The numbers that drive the design
 
-A quick static model (to become a proper sizing tool in Phase 0). It uses the real tent:
-pulleys at 2.44 m, set 8 cm in from each corner of the 8 ft square. The ball is 0.46 m
-(18 in) across and rests on the pedestal at 1.0 m. The four lines attach to a ring 0.3 m
-across on top of the ball.
+A quick static model (to become a proper sizing tool in Phase 0). It uses the gazebo:
+pulleys 91 in (2.31 m) apart at 79 in (2.01 m). The ball is 14 in (0.36 m) across and
+rests on the pedestal at 1.0 m. The four lines attach to points 10 cm apart on top of
+the ball.
 
 ### The space it can fly in
 
 | Limit | Value |
 | --- | --- |
-| Ball center when docked | about 1.23 m |
-| Highest ball center (top of ball 0.3 m below the pulleys) | about 1.91 m |
-| **Room to rise** | **about 0.68 m** |
-| **Sideways, each way from center** (0.3 m clear of the curtains) | **about ±0.69 m** |
+| Ball center when docked | about 1.18 m (46 in) |
+| Top of the ball when docked | about 1.36 m (53 in): 0.65 m (26 in) below the pulleys |
+| **Sideways, each way from center** (0.3 m clear of the curtains) | **about ±0.68 m (±27 in)** |
+| **Room to rise** | **about 0.35–0.50 m (14–20 in)**, depending on how close to the pulleys it may go (below) |
 
-Once clear of the table, the ball can also come down beside it. Tensions climb fast as the
-top of the ball nears the pulleys, so the top limit is firm.
+Once clear of the table, the ball can also come down beside it.
+
+**Height is the scarce thing.** Lines get shallower as the ball nears the pulleys, and
+shallow lines pull much harder. So the closer the ball may go to the pulleys, the higher
+it rises, but the harder every line pulls:
+
+| Top of ball kept below the pulleys | Room to rise | Worst line pull, per kg of head |
+| --- | --- | --- |
+| 0.30 m (12 in) | 14 in (0.35 m) | 17 N |
+| **0.20 m (8 in)** | **18 in (0.45 m)** | **24 N** |
+| 0.15 m (6 in) | 20 in (0.50 m) | 32 N |
+
+The plan uses **0.20 m (8 in)**, so 18 in of rise. Ways to get more:
+
+- **Mount the pulleys at 79 in, not 70 in.** At 70 in the ball could rise only 5–11 in.
+  Every inch of pulley height is an inch of rise.
+- **Lower the pedestal.** Every inch lower is an inch more rise.
+- **Pulleys partway up the roof.** If the roof is a hip roof, with rafters running from the
+  corners up to the peak, pulleys on those rafters sit higher. Assuming a straight roof
+  from 79 in at the corners to 100 in at the peak, 15 cm in along a rafter gains about 2 in
+  of rise, and 30 cm in gains about 4 in. That moves the pulleys inwards a little, which
+  doesn't matter here: the curtains limit sideways travel first. This needs a look at the
+  real roof (see Q1).
 
 ### What the head weighs
 
-An 18 in acrylic sphere weighs:
+A 14 in acrylic sphere weighs:
 
 | Wall thickness | Sphere weight |
 | --- | --- |
-| 2 mm | 1.6 kg |
-| 3 mm | 2.3 kg |
-| 4.5 mm | 3.5 kg |
-| 6 mm | 4.7 kg |
+| 2 mm | 0.95 kg |
+| 3 mm | 1.4 kg |
+| 4.5 mm | 2.1 kg |
 
-Add the head form, projector, battery, LEDs and the attachment ring. Somewhere around
-**4–8 kg** is likely.
+Add the head form, wig, projector, Pi, mirror, battery and the fittings. Somewhere around
+**3–5 kg** is likely. This year's ball can simply be weighed.
 
 ### Line tensions by head weight
 
-Tension scales with weight. Over the whole workspace, including gentle acceleration
-(0.5 m/s²), the worst line sees about **14 N per kg of head**. Resting just off the dock,
-each line carries about 4 N per kg.
+Tension scales with weight. With the top limit at 0.20 m, over the whole workspace and
+including gentle acceleration (0.5 m/s²), the worst line sees about **24 N per kg of head**.
+Resting just off the dock, each line carries about 6 N per kg.
 
 | Head | Each line, just off the dock | Worst line, anywhere | Line rating at 8:1 | Torque on a 12 mm drum |
 | --- | --- | --- | --- | --- |
-| 3 kg | 13 N | 41 N | ~75 lb | 0.5 N·m |
-| 5 kg | 21 N | 69 N | ~125 lb | 0.8 N·m |
-| 8 kg | 34 N | 110 N | ~200 lb | 1.3 N·m |
-| 10 kg | 42 N | 138 N | ~250 lb | 1.7 N·m |
+| 3 kg | 19 N | 73 N | ~130 lb | 0.9 N·m |
+| 4 kg | 26 N | 98 N | ~175 lb | 1.2 N·m |
+| 5 kg | 32 N | 122 N | ~220 lb | 1.5 N·m |
+| 6 kg | 38 N | 146 N | ~265 lb | 1.8 N·m |
+
+The worst pull only happens at the very top of the travel. If the show rarely goes there,
+the top limit can stay at 0.20 m but with slower moves near it. If the line ends up too
+thick to hide, lower the top limit: at 0.30 m every number above drops by about 30%.
 
 ### Is heavier more stable?
 
 Yes, against things that push from outside. But only up to a point, and not against
 everything. A second model treats the ball as a rigid body on four stretchy lines (black
-braid, ball center at 1.6 m). It pushes the ball with a 22 mph (10 m/s) wind from the open
-front, which is 4.6 N on an 18 in ball.
+braid, ball at mid-height). It pushes the ball with a 22 mph (10 m/s) wind from the open
+front, which is 2.8 N on a 14 in ball.
 
-| Head | Ring 0.3 m across, weight 8 cm low: ball moves | Tilts | Twists, per small nudge* |
+| Head | Ball moves | Tilts | Twists, per small nudge* |
 | --- | --- | --- | --- |
-| 3 kg | 4.8 mm | 2.1° | 0.27° |
-| 5 kg | 3.3 mm | 1.3° | 0.16° |
-| 8 kg | 2.4 mm | 0.8° | 0.10° |
-| 12 kg | 1.9 mm | 0.5° | 0.07° |
-| 5 kg, but ring 0.16 m across, weight at the center | 10.7 mm | 3.1° | 0.28° |
+| 2 kg | 11.7 mm | 4.1° | 0.77° |
+| 3 kg | 7.9 mm | 2.7° | 0.52° |
+| 4 kg | 6.1 mm | 2.0° | 0.39° |
+| 6 kg | 4.2 mm | 1.4° | 0.26° |
 
-\* A 0.05 N·m twisting push, such as an off-center gust.
+\* A 0.05 N·m twisting push, such as an off-center gust. Attachment points 10 cm apart,
+center of weight 5 cm below the ball's center.
 
 What this shows:
 
 1. **Weight helps against outside pushes:** wind, a curtain brushing a line, a tug. Doubling
-   the weight cuts the movement by about a third to a half. The returns shrink: 3 → 5 kg
-   is a big step, while 8 → 12 kg barely shows.
+   the weight about halves the movement. The returns shrink as it gets heavier.
 2. **Weight doesn't help with the ball's own moves.** When the ball speeds up or slows
    down, the force that makes it rock grows with its weight, and so does the force that
    steadies it. They cancel out. The rocking period (about 1.3–2 times a second) hardly
    changes with weight either. What helps here is smooth S-curve moves (section 5.3).
-3. **Shape matters more than weight, and it's free.** A low center of weight (battery
-   at the bottom) always helps. Spreading the attachment points wider cuts sway and
-   twist too, but it makes the ball lean when it's off center. See the next section: the
-   points should be about 10 cm apart, not 30 cm.
+3. **Shape matters too, and it's free.** A low center of weight (battery at the bottom)
+   always helps. Spreading the attachment points wider cuts sway and twist, but it makes
+   the ball lean when it's off center. See the next section.
 4. **Weight has real costs:** thicker line (it grows with the square root of the weight,
    so double the weight is 1.4 times the thickness, and more visible), more to fall if
-   something breaks, and more pull on the frame.
+   something breaks, and more pull on the gazebo.
 5. **At sane wind levels, none of this is large.** At 10 mph the push is a fifth of the
-   table's, so a 5 kg head moves under a millimetre.
+   table's, so a 4 kg head moves about a millimetre.
 
-**Recommendation:** aim for about **5–8 kg** from the parts themselves. Don't add ballast
-for stability: get it from a low battery, the right attachment spacing and smooth
-moves first. Build the
-winches for 10 kg so the weight doesn't hold up ordering. Choose the line once the head is
-weighed.
+**Recommendation:** don't add ballast. A 3–5 kg head is fine. Get steadiness from a low
+battery, the right attachment spacing and smooth moves. Build the winches for 6 kg so the
+weight doesn't hold up ordering. Choose the line once the head is weighed.
 
 ### Keeping the face towards the audience
 
@@ -428,20 +461,19 @@ gravity. Two results:
   the far ones shallower. Their pull no longer balances around the ball, so it leans. How
   much depends on how far apart the attachment points are:
 
-| Attachment points apart | Lean, 0.5 m to one side | Lean, far corner | Effort to turn the face 1° |
-| --- | --- | --- | --- |
-| One point | 0° | 0° | none: it spins freely |
-| 6 cm | 1.6° | 3.1° | 0.07 N·m |
-| **10 cm** | **2.6°** | **5.2°** | **0.11 N·m** |
-| 16 cm | 4.0° | 8.2° | 0.18 N·m |
-| 30 cm | 7.3° | 15.1° | 0.31 N·m |
+| Attachment points apart | Lean, 0.5 m to one side | Lean, 0.5 m both ways | Lean, low far corner | Effort to turn the face 1° |
+| --- | --- | --- | --- | --- |
+| One point | 0° | 0° | 0° | none: it spins freely |
+| 6 cm | 2.0° | 2.9° | 3.7° | 0.08 N·m |
+| **10 cm** | **3.0°** | **4.6°** | **6.0°** | **0.13 N·m** |
+| 16 cm | 4.5° | 7.0° | 9.3° | 0.20 N·m |
 
-(5 kg head, center of weight 8 cm below the ball's center. Moving the weight to 15 cm
-below cuts the lean by about a sixth.)
+(4 kg head, center of weight 5 cm below the ball's center. A lower center of weight cuts
+the lean a little.)
 
 Spacing the points wider holds the face more firmly but makes the ball lean more. **About
 10 cm apart is the proposed balance.** A slight lean towards the side it drifts to may even
-look natural. The real twisting pushes are tiny, so 0.11 N·m per degree holds the face to a
+look natural. The real twisting pushes are tiny, so 0.13 N·m per degree holds the face to a
 fraction of a degree.
 
 The firmware must model the lean. If it worked out line lengths as if the ball stayed
@@ -449,10 +481,10 @@ level, the ball would land up to about 2 cm from where it was sent (section 5.3)
 
 ### Inside the ball: a central spine
 
-The lines pull up to 140 N on the top fitting. Point loads like that can crack acrylic, so
+The lines pull up to about 150 N each on the top fitting. Point loads like that can crack acrylic, so
 the sphere shouldn't carry them on its own. Proposed:
 
-- **A small top fitting**, black, about 10–12 cm across, holding the four line points.
+- **A small top fitting**, black, about 10 cm across, holding the four line points.
   It clamps through a hole at the top of the sphere.
 - **A spine** runs down from it, hidden in the wig, into the head. The head, projector,
   mirror and battery all hang from the spine. The sphere is clamped to the same fitting,
@@ -471,25 +503,25 @@ Further points from the model:
   position-controlled. Maslow 4 (four belts, ESP32) and Hangprinter (four lines) both
   ran into this. Section 3.2 explains how the two motor options handle it. Section 5.3
   has the firmware side.
-- **The posts take an inward pull** of up to about 140 N each (10 kg head), sideways at the
-  top. The frame needs diagonal braces or a top rectangle that ties the posts together.
+- **The gazebo's pole tops take an inward pull** of up to about 120 N each (5 kg head, at
+  the top of the travel). Section 2 has a simple test for it.
 - **Low-stretch line matters.** With nylon monofilament the ball moves about twice as far
   in the same wind, and it bounces at a lower frequency.
 
 ### Wind on the ball
 
-A smooth 18 in sphere (drag coefficient about 0.47) catches:
+A smooth 14 in sphere (drag coefficient about 0.47) catches:
 
-| Wind | Force on the ball | Share of a 5 kg head's weight |
+| Wind | Force on the ball | Share of a 4 kg head's weight |
 | --- | --- | --- |
-| 4.5 m/s (10 mph) | 0.9 N | 2% |
-| 7 m/s (16 mph) | 2.3 N | 5% |
-| 10 m/s (22 mph) | 4.6 N | 9% |
+| 4.5 m/s (10 mph) | 0.6 N | 1.5% |
+| 7 m/s (16 mph) | 1.4 N | 3.5% |
+| 10 m/s (22 mph) | 2.8 N | 7% |
 
 The lines won't go slack at any of these. The real limit is how it looks: the ball sways
-and rocks, the curtains billow towards it, and the posts move. Wind inside a tent closed on
-three sides is much lower than outside, except when it blows straight in the open front.
-Section 6 turns this into rules.
+and rocks, the curtains billow towards it, and the gazebo moves. Wind inside a gazebo
+closed on three sides is much lower than outside, except when it blows straight in the open
+front. Section 6 turns this into rules.
 
 ### Power on board
 
@@ -520,7 +552,7 @@ Charging on the dock, two ways:
 | **Spring-loaded contacts** (gold-plated pogo pins on the pedestal, pads on the ball's base) | Simple. High power, so a fast top-up. | Exposed metal outdoors: dew and dirt. The pads must line up. |
 | **Inductive** (a Qi-style coil in the pedestal, another in the ball's base) | Nothing exposed. Works through the acrylic. Sealed. | Common modules give 5–15 W, so it's slower. The coils must be within a few millimetres of each other. The dock's seat lines them up. |
 
-Either is fine with a full-evening pack. Inductive suits a damp outdoor tent better.
+Either is fine with a full-evening pack. Inductive suits a damp outdoor gazebo better.
 
 The controller switches dock power on only while the ball is seated and disarmed, and it
 reports the ball's charge if the Pi sends it.
@@ -688,7 +720,7 @@ stateDiagram-v2
 
 ### 5.6 Touchscreen
 
-7" landscape. Big targets, readable from a step back. Dark theme for a dark tent.
+7" landscape. Big targets, readable from a step back. Dark theme for a dark gazebo.
 
 | Screen | Contents |
 | --- | --- |
@@ -728,8 +760,8 @@ Three levels. The firmware enforces them. Show Controller and the screen both sh
   stands still. It measures what actually reaches the head, including what the anemometer
   misses (a gust through the curtains, a billowing wall). It can raise the level by itself.
 - A **missing or stuck sensor counts as Red.** Fail safe.
-- These limits are for the prop. The tent has its own wind rating from its maker and
-  local permits. If that is lower, it wins, and the tent should be cleared first anyway.
+- These limits are for the prop. The gazebo has its own wind rating from its maker and
+  local permits. If that is lower, it wins, and the gazebo should be cleared first anyway.
 - Separate from wind: stop for lightning nearby (crew policy). Inspect lines after rain.
   Nylon line changes length when wet, another reason to prefer UHMWPE.
 
@@ -740,9 +772,9 @@ lines. Set Amber below the lowest of those, and Red at it.
 
 Site rules that make the numbers better:
 
-- Face the tent's open side away from the usual wind, if you can.
+- Face the gazebo's open side away from the usual wind, if you can.
 - Tie and weight the curtain bottoms. Keep at least 0.3 m between the curtains and the
-  ball's path. The tent is small, so every bit of curtain movement matters.
+  ball's path. The gazebo is small, so every bit of curtain movement matters.
 - No guests under the head or in reach of a line. Barricade the area under the workspace.
 
 ## 7. Risks and what handles them
@@ -755,16 +787,16 @@ Site rules that make the numbers better:
 | Network lost | No heartbeat | Stops and disarms after 0.5 s (SCMP Q8). |
 | Motor stalls or skips | One line wrong length | Drive alarm, and tension mismatch. |
 | Line snags a curtain or set piece | Tensions jump | `overload` or `tension_mismatch`. Keep-out zones. Curtain clearance. |
-| Frame sways | Head moves with the posts | Freestanding, ballasted frame. Tension swing raises the wind level. |
+| Gazebo sways | Head moves with the poles | Stakes or weights on the legs. The inward-pull test (section 2). Tension swing raises the wind level. |
 | Calibration drift (line creep, temperature) | Slowly growing tension mismatch | Re-home at the dock at the start of each show day. Tension trim. Low-stretch line. |
 | Wrong command from Show Controller | Unexpected move | Soft limits, workspace checks, Local mode, and SCMP's rules. Arming by schedule only if the device allows it (Q7). |
 
 ## 8. Plan of work: tests that settle the design
 
 Two tracks run side by side. The **motion track** doesn't need the head to be finished: the
-winches are sized for the heaviest likely head (10 kg), and dead weights stand in for it.
+winches are sized for the heaviest likely head (6 kg), and dead weights stand in for it.
 The **head track** settles the payload: weight, center of weight, projector and power. They
-meet in Phase 4, on the full frame.
+meet in Phase 4, on the gazebo.
 
 ```mermaid
 flowchart LR
@@ -773,7 +805,7 @@ flowchart LR
   P1 --> P3
   P2["Phase 2: simulation<br/>(any time)"] --> P4
   H["Head track<br/>sphere, weight, projector,<br/>battery, dock charging"] --> P4
-  P3 -->|"motor type,<br/>line short list"| P4["Phase 4: frame in the workshop<br/>4 winches, dummy head"]
+  P3 -->|"motor type,<br/>line short list"| P4["Phase 4: gazebo test setup<br/>4 winches, dummy head"]
   P4 --> P5["Phase 5: full scale<br/>real head, wind, failures"] --> P6["Phase 6: site"]
 ```
 
@@ -784,10 +816,10 @@ flowchart LR
 | **0. Buy bench parts** | See "What to buy now" below. | |
 | **1. Bench electronics** | Ethernet and an SCMP session with Show Controller's SCMP client. Touchscreen running. **Step pulses from the P4** on a logic analyzer: smooth at very slow speeds, no glitches while the screen and network are busy. A CAN link to the ODrive. One E-stop that cuts the 48 V supply through a contactor. | That one ESP32-P4 can do motion, network and screen together. Step pulses on the P4 are the least proven part (FastAccelStepper lists P4 support as experimental), so this test comes first. |
 | **2. Simulation** | Kinematics with the lean (section 4), profiles and state machine, unit-tested on a PC. An SCMP simulator. | Firmware structure. Needs no hardware. |
-| **3. One-winch tests** | A winch on the floor, a line up over a pulley at about 2.4 m (a beam or a temporary post), down to a dead weight. Water jugs or sandbags of 2, 5, 10 and 14 kg give line tensions across the full range (20–140 N). Run both motor types on the same rig. See below. | Motor type, drum size, brake size, and a short list of lines. |
-| **4. Frame in the workshop** | Buy three more winches of the chosen type. Build the real 8 ft frame. Fly a dummy head of the right weight and size (a cheap ball with weights inside, hung from a copy of the top fitting). Check that the lean and facing match the model. Dock homing, tension management, settling after moves, S-curve tuning, the joystick from Show Controller. | The control approach works. The final pin plan and I/O carrier board. |
+| **3. One-winch tests** | A winch on the floor, a line up over a pulley at about 2.4 m (a beam or a temporary post), down to a dead weight. Water jugs or sandbags of 2, 5, 10 and 15 kg give line tensions across the full range (20–150 N). Run both motor types on the same rig. See below. | Motor type, drum size, brake size, and a short list of lines. |
+| **4. Gazebo test setup** | Buy three more winches of the chosen type. Put the gazebo up somewhere sheltered and mount them on it. Do the inward-pull test first. Fly a dummy head of the right weight and size (a cheap ball with weights inside, hung from a copy of the top fitting). Check that the lean and facing match the model. Dock homing, tension management, settling after moves, S-curve tuning, the joystick from Show Controller. | The control approach works. The final pin plan and I/O carrier board. |
 | **5. Full scale** | The real head. Wind tests with a fan or leaf blower (section 6). Failure tests: E-stop at full speed, unplug Ethernet, cut power, a line break on the dummy head. | Wind limits. Final line choice. |
-| **6. Site** | Install under the tent. Checklists. A show night run from Show Controller. | Ready for shows. |
+| **6. Site** | Install in the gazebo. Checklists. A show night run from Show Controller. | Ready for shows. |
 
 **Phase 3 in detail.** The same tests on the closed-loop stepper and the ODrive:
 
@@ -795,18 +827,18 @@ flowchart LR
 | --- | --- | --- |
 | Noise | A phone sound meter at 1 m, in a quiet room at night. Holding still, crawling (5 mm/s), cruising (0.1–0.3 m/s). | Whether it can be heard where the audience stands. |
 | Crawl smoothness | Slow-motion phone video of the weight, or a small accelerometer taped to it, at 2–10 mm/s. | Visible stepping or shiver. A floating head creeps slowly, so this matters most. |
-| Holding | 14 kg held for an hour. Motor temperature, position drift. | Heat and drift through a long show. |
+| Holding | 15 kg held for an hour. Motor temperature, position drift. | Heat and drift through a long show. |
 | Brake | Cut power while moving down with 10 kg. Measure the drop and the jolt. | That the brake holds, and the stop isn't too harsh. |
 | Tension reading | Load cell against known weights. On the ODrive, motor current against the load cell. | Whether the load cells are needed for control, or only as a check. |
 | Faults | Stall the motor on purpose. Pull the step signal. Drop the CAN link. | The drive raises an alarm, and the controller sees it. |
-| Lines | Candidate lines on the same rig: black braid at 100, 150 and 250 lb, clear monofilament, fluorocarbon. Stretch under load. Creep with 10 kg left hanging overnight. Length change when wet. 1,000 trips over the pulley and drum. | Stretch, creep and wear. |
+| Lines | Candidate lines on the same rig: black braid at about 130, 200 and 265 lb, clear monofilament, fluorocarbon. Stretch under load. Creep with 10 kg left hanging overnight. Length change when wet. 1,000 trips over the pulley and drum. | Stretch, creep and wear. |
 | Visibility | The lines hung against black curtain, at night, under the planned lighting, viewed from where the audience stands. Photographs from the audience's position. | Which lines disappear. The final size waits for the head's weight. |
 
 ### Head track (runs in parallel)
 
 | Step | Work | Settles |
 | --- | --- | --- |
-| H1. The sphere | Buy the 18 in acrylic sphere early. It is the biggest single weight and sets the fittings. Weigh it, measure the wall, and check the hole at the top. | Sphere weight, and the top fitting design. |
+| H1. The sphere | Weigh this year's 14 in ball and measure its wall. If a new ball is needed (a hole at the top for the fitting, a base fitting), buy it early: it sets the fittings. | Sphere weight, and the top fitting design. |
 | H2. Projector | Pi Zero 2 W, candidate projectors, a mirror and a face blank on the bench. Brightness, throw, heat, power draw. | The projector, and the power budget. |
 | H3. Power | Battery and power-path board. Measure a 4-hour run. Dock charging (contacts or inductive), docking and lifting while video plays. | Battery size, charging method, no reboots on docking. |
 | H4. Weigh it | The full head on the spine, with wig, projector and battery. Weight, and where the center of weight is. | Payload: the final line size, and the lean model's real numbers. |
@@ -831,9 +863,9 @@ they can be bought now. About **$800–1,100** in all:
 | One E-stop button and a contactor | $40–80 | A test-bench version of the safety chain. |
 
 **Wait on:** the other three winches (until Phase 3 picks a type), the safety relay and
-final E-stops, the anemometer, frame material, and the final line size.
+final E-stops, the anemometer, the gazebo brackets, and the final line size.
 
-**Bench safety:** a 14 kg weight on a test line is dangerous. Hang it over a padded area
+**Bench safety:** a 15 kg weight on a test line is dangerous. Hang it over a padded area
 that nobody stands under. Add a second, slack safety line to the weight. Keep the E-stop in
 reach. Test the ODrive without a brake only with light weights, or with the weight resting
 on a catch.
@@ -842,8 +874,8 @@ on a catch.
 
 | # | Question | Why it matters |
 | --- | --- | --- |
-| Q1 | Answered: 8 ft tent, pulleys at 8 ft, pedestal at 1.0 m. | Gives 0.68 m of rise and ±0.69 m sideways (section 4). |
-| Q2 | Ball about 18 in across; face always to the audience (answered). **What will the whole head weigh?** How thick is the sphere's wall? | Winches are sized for 10 kg. The line is chosen once the head is weighed (section 4). |
+| Q1 | Measured: pick points 91 in apart at 70–79 in, roof 100 in, pedestal at 1.0 m. **Please confirm:** is it 91 in in both directions? Can the pulleys go anywhere from 70 to 79 in (the plan uses 79)? Is the roof a hip roof with rafters from the corners to the peak? Could the pedestal be lower? | Pulley height and pedestal height set the rise: 18 in at 79 in, only 5–11 in at 70 in (section 4). |
+| Q2 | Ball 13–14 in across; face always to the audience (answered). **What will the whole head weigh?** What does this year's ball weigh? | Winches are sized for 6 kg. The line is chosen once the head is weighed (section 4). |
 | Q3 | Pi Zero 2 W, projector in the neck with a mirror, Li-ion battery (answered). **Which projector?** Contacts or inductive charging on the dock? | Power budget, heat, and the dock design (section 4). |
 | Q4 | 3-axis from the start, or 2-axis first and 3-axis later? | Same hardware. Only commissioning order changes. |
 | Q5 | Option A (closed-loop steppers with brakes) or Option B (ODrive brushless with torque control)? | Cost, tuning effort and how tension is managed. A is the lead choice. Phase 3 tests one of each and decides. |
