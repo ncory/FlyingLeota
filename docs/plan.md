@@ -314,8 +314,8 @@ flowchart LR
 
 ### 3.4 Power and enclosure
 
-- 48 V DC supply for the drives (Mean Well, about 480–600 W), 24 V for brakes, relays
-  and I/O, and 5 V for the ESP32 from the 24 V.
+- 48 V DC supply for the drives, 24 V for brakes, relays, I/O and the dock charger, and
+  5 V for the ESP32 from the 24 V. Sizes below.
 - An IP54 or better enclosure with the touchscreen in the door, behind a clear cover if
   rain can reach it. Glands or panel connectors for each winch. Feed it from a GFCI
   outlet.
@@ -323,6 +323,60 @@ flowchart LR
   (screened, labelled, locking connectors). Check the encoder cable length limit. If the
   posts are far apart, put each drive in a small box at its winch and send it
   differential step/dir (or CAN with Option B).
+
+#### Power budget
+
+These are estimates, deliberately on the high side. Phase 3 replaces them with readings
+from a plug-in power meter on the one-winch rig. The ball runs on its own battery, so only
+its dock charger counts here. Show Controller, the network switch, lighting and sound are
+on their own supplies and not included.
+
+| Load | Rail | Typical, show running | Most it could draw |
+| --- | --- | --- | --- |
+| 4 winches (drive + motor) | 48 V | 60–200 W | 400 W (100 W each, all at once) |
+| 4 brakes, held released while armed | 24 V | 30–45 W | 45 W |
+| ESP32-P4 board and 7" screen | 24 V (via 5 V) | 4 W | 6 W |
+| Safety relay, contactor coil, I/O, load cells, anemometer, stack light, fan | 24 V | 15 W | 30 W |
+| Dock charger for the ball | 24 V | 0–25 W | 60 W (contacts) or 25 W (inductive) |
+| **Total DC** | | **about 110–290 W** | **about 540 W** |
+
+Why the winches are budgeted so high: lifting even a 6 kg head at 0.3 m/s takes only about
+18 W of actual work. But a stepper draws current to make torque whether it moves or not,
+and much of that becomes heat. A closed-loop drive cuts the current when the load is
+light, so holding still is cheaper than the worst case. An ODrive is more efficient again.
+
+**Power supplies** (switch-mode, DIN rail, with power-factor correction):
+
+| Rail | Supply | Rating | Load at worst |
+| --- | --- | --- | --- |
+| 48 V | Mean Well SDR-480-48 | 480 W (10 A) | about 400 W: 83% |
+| 24 V | Mean Well SDR-240-24 | 240 W (10 A) | about 140 W: 58% |
+| 5 V | DC-DC converter from the 24 V | about 15 W | under 10 W |
+
+These are not old-style transformers. A switch-mode supply takes the AC mains straight in
+and gives regulated DC out. Each supply limits its own current, so together they can never
+draw more than their ratings.
+
+**AC draw at 120 V** (supplies about 94% efficient, power factor about 0.95–0.99):
+
+| Case | AC power | AC current |
+| --- | --- | --- |
+| Typical, show running | about 120–310 W | about 1–3 A |
+| Worst-case budget above | about 575 W | about 5 A |
+| **Ceiling: both supplies at full rating** | **about 770 W** | **about 6.5–7 A** |
+| Switch-on surge | | about 40 A + 33 A for a few thousandths of a second |
+
+- **Plan for 800 W, 7 A at 120 V.** The rig physically can't draw more.
+- **A 15 A, 120 V GFCI circuit is plenty,** with half of it to spare. Don't share it with
+  heaters, fog machines or other heavy loads, so a trip elsewhere can't drop the rig.
+- **The switch-on surge** is normal for switch-mode supplies and fine for a standard
+  breaker. If a GFCI trips on switch-on, power the two supplies a second apart.
+- **Energy per night:** 4 hours at a generous 250 W average is about 1 kWh. That matters
+  only if it runs from a generator or battery power station: size that for at least
+  1,000 W continuous and 1.5 kWh.
+- Lowering the ball turns the motors into generators. The energy flows back into the 48 V
+  supply, which can't absorb it. With a light ball this is small, but the 48 V rail gets a
+  brake resistor or voltage clamp (the ODrive needs one anyway).
 
 ### 3.5 Wind sensor
 
@@ -865,7 +919,7 @@ they can be bought now. About **$800–1,100** in all:
 | **Espressif ESP32-P4-Function-EV-Board, with the 7" LCD** | $55–90 | The LCD is optional in the package, so order the kit that includes it. 26 GPIOs on a 40-pin header: plenty for the bench. |
 | Closed-loop stepper, NEMA 23 about 3 N·m, with 24 V brake, and its drive | $150–250 | Option A. Check the brake holds at least 2 N·m. |
 | ODrive S1 + M8325s kit | $280–340 | Option B. The brake comes later, if B wins. |
-| 48 V supply (about 400 W), 24 V supply | $100–150 | |
+| 48 V supply (SDR-480-48), 24 V supply (SDR-240-24) | $150–220 | The final supplies (section 3.4), so they're not bought twice. |
 | ODrive brake resistor | $10–20 | Lowering a weight turns the motor into a generator. The energy has to go somewhere, or the supply voltage jumps. |
 | Beam load cell (20–50 kg) and HX711 amplifier | $15–30 | |
 | CAN transceiver module (3.3 V, e.g. SN65HVD230) | $5–10 | The P4 has CAN controllers but no transceiver. |
