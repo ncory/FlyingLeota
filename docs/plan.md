@@ -50,7 +50,7 @@ controller.
 | --- | --- |
 | Structure | A gazebo: a rigid metal frame that can be broken down. It can carry the rig directly, with stakes or weights added to the four corner poles if needed. No separate truss. Curtains close 3 sides. |
 | Pick points | A square: the post centers are 91 in (2.31 m) apart both ways. The posts are 70 in (1.78 m) tall. A metal corner piece of the roof frame runs straight up from each post top to 79 in (2.01 m). The pulleys mount at the top of those corner pieces, directly above the post centers. |
-| Roof | A hardtop pyramid roof with a small raised vent tier at the top, like a typical grill or patio gazebo. Rafters run from each corner up to the center. 100 in (2.54 m) inside at the peak. |
+| Roof | A soft top: a fabric canopy over a light steel frame, with a small raised vent tier at the top. Thin rafters run from each corner up to the center, and arched braces tie each post to the beams. Same style as a Kozyard soft-top grill gazebo. 100 in (2.54 m) inside at the peak. |
 | Dock | A pedestal fixed to a table in the middle of the gazebo, its top 0.75 m (30 in) off the deck. The head rests here when it isn't flying. |
 | Head | Lifesize, inside a clear sphere made to look like a crystal ball, 13–14 in (0.33–0.36 m) across. A large curly wig. Weight not known yet. This year's head is fixed on the pedestal, with front projection onto a blank face. A flying head needs the projector inside instead, so the image moves with it. |
 | Facing | **The face must always point towards the audience.** |
@@ -104,21 +104,29 @@ Why not the other layouts:
 
 ### Mounting on the gazebo
 
-The gazebo is a rigid metal frame, so the pulleys and winches mount on it directly. No
-separate truss is needed. Two things to check, because if the poles move, the head moves:
+The gazebo's steel frame carries the pulleys and winches directly. No separate truss is
+needed. It is a light frame with a fabric roof, though, so three things need checking,
+because if the posts move, the head moves:
 
 - **Inward pull.** The lines pull each corner towards the center, by up to about 120 N
   for a 5 kg head at the top of its travel (section 4). Test it before building: run a
   ratchet strap with a luggage scale between two opposite corners at 79 in, pull to about
   150 N, and measure how far the corners move. A few millimetres is fine. More than that
-  needs a brace.
-- **Wind on the roof.** The canopy catches wind and can rock the frame. Stake or weight
-  the legs, as Nate suggested. The tension-swing check (section 6) notices if the frame
-  is moving.
+  needs bracing at the corners. A brace straight across the top, corner to corner, could
+  touch the lines when the ball is high and off center, so keep bracing near the corners.
+  Also try the pull with the ball off center: then the corners are pulled unevenly, which
+  tries to rack the frame out of square.
+- **Wind on the canopy.** A fabric roof is a sail. It pushes the frame sideways and can
+  lift it. **Stake or weight every leg**: with a soft top this is a must, not an option.
+  Tie the canopy down tight so it doesn't flap.
+- **Canopy flapping.** A flapping canopy shakes the frame, and the pulleys are on the
+  frame, so the ball would shiver. Check it in the Phase 5 wind tests. The tension-swing
+  check (section 6) notices if the frame is moving.
 
 Each winch clamps to the bottom of its post. The line runs straight up the post through
 small guides to the pulley on the corner piece at 79 in. The corner, where the post, the
-beams and the rafter meet, is the strongest point of the frame, which suits the pull.
+beams and the rafter meet, is the stiffest point of the frame, which suits the pull. The
+rafters are thin tubes, another reason not to put pulleys on them.
 
 ### Lines
 
@@ -764,6 +772,8 @@ Three levels. The firmware enforces them. Show Controller and the screen both sh
 - A **missing or stuck sensor counts as Red.** Fail safe.
 - These limits are for the prop. The gazebo has its own wind rating from its maker and
   local permits. If that is lower, it wins, and the gazebo should be cleared first anyway.
+  Soft-top gazebos are often rated for less wind than the prop's Red level, so check the
+  maker's figure and lower the thresholds to match.
 - Separate from wind: stop for lightning nearby (crew policy). Inspect lines after rain.
   Nylon line changes length when wet, another reason to prefer UHMWPE.
 
@@ -789,7 +799,7 @@ Site rules that make the numbers better:
 | Network lost | No heartbeat | Stops and disarms after 0.5 s (SCMP Q8). |
 | Motor stalls or skips | One line wrong length | Drive alarm, and tension mismatch. |
 | Line snags a curtain or set piece | Tensions jump | `overload` or `tension_mismatch`. Keep-out zones. Curtain clearance. |
-| Gazebo sways | Head moves with the poles | Stakes or weights on the legs. The inward-pull test (section 2). Tension swing raises the wind level. |
+| Gazebo sways, or the canopy flaps | Head moves or shivers with the frame | Stakes or weights on every leg. Canopy tied down tight. The inward-pull test (section 2). Tension swing raises the wind level. |
 | Calibration drift (line creep, temperature) | Slowly growing tension mismatch | Re-home at the dock at the start of each show day. Tension trim. Low-stretch line. |
 | Wrong command from Show Controller | Unexpected move | Soft limits, workspace checks, Local mode, and SCMP's rules. Arming by schedule only if the device allows it (Q7). |
 
@@ -876,7 +886,7 @@ on a catch.
 
 | # | Question | Why it matters |
 | --- | --- | --- |
-| Q1 | Answered: a square, post centers 91 in apart; pulleys on the corner pieces at 79 in; hardtop pyramid roof, 100 in at the peak; pedestal at 0.75 m. | 24 in of rise with 12 in of clearance (section 4). |
+| Q1 | Answered: a square, post centers 91 in apart; pulleys on the corner pieces at 79 in; soft-top canopy on a steel frame, 100 in at the peak; pedestal at 0.75 m. | 24 in of rise with 12 in of clearance (section 4). |
 | Q2 | Ball 13–14 in across; face always to the audience (answered). **What will the whole head weigh?** What does this year's ball weigh? | Winches are sized for 6 kg. The line is chosen once the head is weighed (section 4). |
 | Q3 | Pi Zero 2 W, projector in the neck with a mirror, Li-ion battery (answered). **Which projector?** Contacts or inductive charging on the dock? | Power budget, heat, and the dock design (section 4). |
 | Q4 | 3-axis from the start, or 2-axis first and 3-axis later? | Same hardware. Only commissioning order changes. |
