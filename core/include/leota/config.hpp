@@ -54,6 +54,9 @@ struct RigConfig {
     std::array<Line, kLines> lines;  // A back left, B back right, C front left, D front right
     double ball_radius = 0.0;
     double mass = 0.0;               // kg: everything that flies
+    Vec3 centre_of_weight;           // from the ball's centre; below it, so the ball hangs upright
+    bool lean_model = true;          // allow for the ball leaning (docs/plan.md, section 4)
+    int lean_every = 10;             // re-solve the lean every this many cycles (it changes slowly)
     double line_ea = 0.0;            // N: line stiffness (force per unit stretch)
 
     std::array<AxisLimits, kAxes> axes;  // x, y, z

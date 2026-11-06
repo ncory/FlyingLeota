@@ -48,50 +48,112 @@ std::array<LineFeedback, kLines> Plant::feedback() {
     return fb;
 }
 
-void Plant::forces(const Vec3& c, std::array<double, kLines>& t) const {
+void Plant::forces(const Vec3& c, const Vec3& rot, std::array<double, kLines>& t) const {
     for (int i = 0; i < kLines; ++i) {
         const double out = zero_[i] + pos_[i];
-        const double d = (cfg_.lines[i].anchor - (c + cfg_.lines[i].attach)).norm();
+        const double d = (cfg_.lines[i].anchor - (c + rotate(rot, cfg_.lines[i].attach))).norm();
         t[i] = cut_[i] || d <= out ? 0.0 : cfg_.line_ea * (d - out) / out;
     }
 }
 
-// Minimises the energy of the lines plus gravity by Newton's method, from ball_.
-bool Plant::equilibrium(Vec3& c) const {
+void Plant::residual(const Vec3& c, const Vec3& rot, double out[6]) const {
     const double w = cfg_.mass * kGravity;
-    for (int iter = 0; iter < 60; ++iter) {
-        Vec3 grad{-push_.x, -push_.y, w - push_.z};
-        double h[3][3] = {{0, 0, 0}, {0, 0, 0}, {0, 0, 0}};
-        int taut = 0;
-        for (int i = 0; i < kLines; ++i) {
-            if (cut_[i]) continue;
-            const double out = zero_[i] + pos_[i];
-            const Vec3 dv = cfg_.lines[i].anchor - (c + cfg_.lines[i].attach);
-            const double d = dv.norm();
-            if (d <= out) continue;
-            ++taut;
-            const Vec3 u = dv * (1.0 / d);
-            const double k = cfg_.line_ea / out, f = k * (d - out);
-            grad -= u * f;  // the line pulls the ball toward its pulley
-            const double uu[3] = {u.x, u.y, u.z};
-            for (int a = 0; a < 3; ++a)
-                for (int b = 0; b < 3; ++b)
-                    h[a][b] += k * uu[a] * uu[b] + (f / d) * ((a == b ? 1.0 : 0.0) - uu[a] * uu[b]);
+    Vec3 f = push_ + Vec3{0.0, 0.0, -w};
+    const Vec3 cg = rotate(rot, cfg_.centre_of_weight);
+    Vec3 tau = cg.cross({0.0, 0.0, -w});
+    std::array<double, kLines> t;
+    forces(c, rot, t);
+    for (int i = 0; i < kLines; ++i) {
+        if (t[i] <= 0.0) continue;
+        const Vec3 r = rotate(rot, cfg_.lines[i].attach);
+        const Vec3 d = cfg_.lines[i].anchor - (c + r);
+        const Vec3 pull = d * (t[i] / d.norm());
+        f += pull;
+        tau += r.cross(pull);
+    }
+    // Twist is scaled to about the same size as push: a lever of 100 mm.
+    out[0] = f.x; out[1] = f.y; out[2] = f.z;
+    out[3] = tau.x / 100.0; out[4] = tau.y / 100.0; out[5] = tau.z / 100.0;
+}
+
+namespace {
+
+// Solves the 6×6 system a·x = b in place by Gaussian elimination. False if singular.
+bool solve6(double a[6][6], double b[6], double x[6]) {
+    for (int col = 0; col < 6; ++col) {
+        int piv = col;
+        for (int r = col + 1; r < 6; ++r)
+            if (std::fabs(a[r][col]) > std::fabs(a[piv][col])) piv = r;
+        if (std::fabs(a[piv][col]) < 1e-12) return false;
+        for (int k = 0; k < 6; ++k) std::swap(a[col][k], a[piv][k]);
+        std::swap(b[col], b[piv]);
+        for (int r = col + 1; r < 6; ++r) {
+            const double m = a[r][col] / a[col][col];
+            for (int k = col; k < 6; ++k) a[r][k] -= m * a[col][k];
+            b[r] -= m * b[col];
         }
-        if (taut < 3) return false;
-        // Solve h · step = -grad.
-        const Vec3 r0{h[0][0], h[0][1], h[0][2]}, r1{h[1][0], h[1][1], h[1][2]},
-            r2{h[2][0], h[2][1], h[2][2]};
-        const double det = r0.dot(r1.cross(r2));
-        if (std::fabs(det) < 1e-12) return false;
-        const Vec3 b = -grad;
-        Vec3 step{b.dot(r1.cross(r2)) / det, r0.dot(b.cross(r2)) / det, r0.dot(r1.cross(b)) / det};
-        const double len = step.norm();
-        if (len > 50.0) step = step * (50.0 / len);  // don't leap
-        c += step;
-        if (len < 1e-7) return true;
+    }
+    for (int r = 5; r >= 0; --r) {
+        double v = b[r];
+        for (int k = r + 1; k < 6; ++k) v -= a[r][k] * x[k];
+        x[r] = v / a[r][r];
     }
     return true;
+}
+
+double size6(const double v[6]) {
+    double s = 0.0;
+    for (int k = 0; k < 6; ++k) s += v[k] * v[k];
+    return std::sqrt(s);
+}
+
+}  // namespace
+
+// Newton's method on position and lean together, with a line search so slack lines
+// switching in and out can't throw it.
+bool Plant::equilibrium(Vec3& c, Vec3& rot) const {
+    int taut = 0;
+    for (int i = 0; i < kLines; ++i) taut += cut_[i] ? 0 : 1;
+    if (taut < 3) return false;
+    double r[6];
+    residual(c, rot, r);
+    for (int iter = 0; iter < 80; ++iter) {
+        const double now = size6(r);
+        if (now < 1e-7) return true;
+        double jac[6][6];
+        const double h[6] = {1e-4, 1e-4, 1e-4, 1e-7, 1e-7, 1e-7};
+        for (int k = 0; k < 6; ++k) {
+            Vec3 c2 = c, r2 = rot;
+            if (k < 3) (k == 0 ? c2.x : k == 1 ? c2.y : c2.z) += h[k];
+            else (k == 3 ? r2.x : k == 4 ? r2.y : r2.z) += h[k];
+            double rk[6];
+            residual(c2, r2, rk);
+            for (int m = 0; m < 6; ++m) jac[m][k] = (rk[m] - r[m]) / h[k];
+        }
+        double b[6], step[6];
+        for (int m = 0; m < 6; ++m) b[m] = -r[m];
+        if (!solve6(jac, b, step)) return false;
+        // Keep each step modest: 50 mm, or about 6°.
+        double scale = 1.0;
+        const double move = std::sqrt(step[0] * step[0] + step[1] * step[1] + step[2] * step[2]);
+        const double turn = std::sqrt(step[3] * step[3] + step[4] * step[4] + step[5] * step[5]);
+        if (move > 50.0) scale = std::min(scale, 50.0 / move);
+        if (turn > 0.1) scale = std::min(scale, 0.1 / turn);
+        for (int tries = 0; tries < 20; ++tries, scale *= 0.5) {
+            const Vec3 c2 = c + Vec3{step[0], step[1], step[2]} * scale;
+            const Vec3 r2 = rot + Vec3{step[3], step[4], step[5]} * scale;
+            double rn[6];
+            residual(c2, r2, rn);
+            if (size6(rn) < now || tries == 19) {
+                c = c2;
+                rot = r2;
+                for (int m = 0; m < 6; ++m) r[m] = rn[m];
+                break;
+            }
+        }
+        if (rot.norm() > 1.0) return false;  // tipped right over: it can't hang like this
+    }
+    return size6(r) < 1e-3;
 }
 
 void Plant::solve() {
@@ -101,7 +163,7 @@ void Plant::solve() {
     const Vec3 dock = cfg_.dock;
     auto upward_at_dock = [&]() {
         std::array<double, kLines> t;
-        forces(dock, t);
+        forces(dock, {}, t);
         double up = push_.z;
         for (int i = 0; i < kLines; ++i) {
             const Vec3 dv = cfg_.lines[i].anchor - (dock + cfg_.lines[i].attach);
@@ -110,12 +172,15 @@ void Plant::solve() {
         return up;
     };
     if (resting_ && upward_at_dock() <= w) {
-        ball_ = dock;  // still sitting in the cup
+        ball_ = dock;  // still sitting upright in the cup
+        rot_ = {};
     } else {
         Vec3 c = resting_ ? dock + Vec3{0, 0, 0.1} : ball_;
-        if (!equilibrium(c)) {
+        Vec3 r = resting_ ? Vec3{} : rot_;
+        if (!equilibrium(c, r)) {
             fell_ = true;
             c = {ball_.x, ball_.y, cfg_.ball_radius};  // on the deck
+            r = {};
         } else {
             fell_ = false;
         }
@@ -123,12 +188,14 @@ void Plant::solve() {
         if (c.z <= dock.z && std::sqrt(dx * dx + dy * dy) <= cfg_.dock_radius) {
             resting_ = true;
             ball_ = dock;
+            rot_ = {};
         } else {
             resting_ = false;
             ball_ = c;
+            rot_ = r;
         }
     }
-    forces(ball_, tension_);
+    forces(ball_, rot_, tension_);
 }
 
 }  // namespace leota

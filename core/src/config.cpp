@@ -27,6 +27,7 @@ RigConfig gazebo_config() {
         {'D', {+half, -half, top}, {+k, -k, za}},
     }};
     c.mass = 4.0;
+    c.centre_of_weight = {0.0, 0.0, -50.0};  // the battery sits low in the neck
     c.line_ea = 5000.0;  // black UHMWPE braid of about 0.6 mm, roughly
 
     c.dock = {0.0, 0.0, 750.0 + c.ball_radius};  // pedestal top at 0.75 m
@@ -78,9 +79,12 @@ std::string check_config(const RigConfig& c) {
     if (c.mass <= 0) say("The mass must be more than 0.");
     if (c.line_ea <= 0) say("The line stiffness must be more than 0.");
     if (c.ball_radius <= 0) say("The ball radius must be more than 0.");
+    if (c.centre_of_weight.z >= 0)
+        say("The centre of weight must be below the ball's centre, or the ball won't hang upright.");
     if (c.control_period <= 0 || c.control_period > 0.01)
         say("The control period must be between 0 and 10 ms.");
     if (c.smoothing < 0) say("Smoothing can't be negative.");
+    if (c.lean_every < 1 || c.lean_every > 100) say("The lean must be re-solved every 1 to 100 cycles.");
     const char* names[kAxes] = {"x", "y", "z"};
     for (int i = 0; i < kAxes; ++i) {
         const AxisLimits& a = c.axes[i];

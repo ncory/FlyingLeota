@@ -144,7 +144,15 @@ std::string SimApp::state_json(double now) {
     const auto lines = r.lines();
     const auto real = plant_->tensions();
     JsonArray ls = d["lines"].to<JsonArray>();
-    const Vec3 ball = plant_->ball();
+    const Vec3 ball = plant_->ball(), rot = plant_->rotation(), model = r.lean();
+    const double deg = 180.0 / kPi;
+    JsonArray rv = d["rotation"].to<JsonArray>();
+    rv.add(rot.x);
+    rv.add(rot.y);
+    rv.add(rot.z);
+    d["tilt"] = std::round(std::hypot(rot.x, rot.y) * deg * 100) / 100;
+    d["turn"] = std::round(rot.z * deg * 100) / 100;
+    d["model_tilt"] = std::round(std::hypot(model.x, model.y) * deg * 100) / 100;
     for (int i = 0; i < kLines; ++i) {
         JsonObject o = ls.add<JsonObject>();
         o["name"] = std::string(1, lines[i].name);
@@ -156,7 +164,7 @@ std::string SimApp::state_json(double now) {
         o["cut"] = plant_->line_cut(i);
         o["alarm"] = plant_->alarm(i);
         vec(o["anchor"].to<JsonObject>(), truth_.lines[i].anchor);
-        vec(o["attach"].to<JsonObject>(), ball + truth_.lines[i].attach);
+        vec(o["attach"].to<JsonObject>(), ball + rotate(rot, truth_.lines[i].attach));
     }
     const WindMonitor& w = r.wind();
     JsonObject wind = d["wind"].to<JsonObject>();

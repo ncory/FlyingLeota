@@ -90,6 +90,7 @@ public:
     std::uint32_t faults() const { return faults_; }
     const std::string& message() const { return message_; }
     Vec3 position() const;  // the ball's commanded centre, mm
+    Vec3 lean() const { return lean_; }  // how the model says the ball hangs there
     Vec3 velocity() const;
     bool has_target(int axis) const { return axes_[axis].has_target(); }
     double target(int axis) const { return axes_[axis].target(); }
@@ -140,6 +141,8 @@ private:
     std::array<LineFeedback, kLines> fb_{};
     LineArray offset_{}, trim_{}, cmd_{}, expected_{}, free_{};
     double pull_ = 0.0;  // mm along the free direction: the tension loop's trim
+    Vec3 lean_;          // the ball's modelled lean (rotation vector)
+    int lean_count_ = 0;
     LineArray slack_t_{}, mismatch_t_{};
 
     bool started_ = false;

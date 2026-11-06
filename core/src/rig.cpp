@@ -545,10 +545,21 @@ void Rig::step_motion(double dt) {
         return;
     }
     const Vec3 p = position();
-    const Tensions e = expected_tensions(cfg_, p, cfg_.plan_tension_min);
+    Tensions e;
+    if (cfg_.lean_model && ++lean_count_ >= std::max(1, cfg_.lean_every)) {
+        // Pay out line for the way the ball will actually hang there, leaning. Starting
+        // from the last answer, this takes a step or two. The lean changes slowly, so
+        // in between, the last answer does.
+        lean_count_ = 0;
+        const Pose pose = hanging_pose(cfg_, p, cfg_.plan_tension_min, lean_);
+        lean_ = pose.rot;
+        e = pose.t;
+    } else {
+        e = expected_tensions(cfg_, p, cfg_.plan_tension_min, {}, cfg_.lean_model ? lean_ : Vec3{});
+    }
     expected_ = e.t;
     free_ = e.free;
-    const LineArray out = unstretched_lengths(cfg_, p, e.t);
+    const LineArray out = unstretched_lengths(cfg_, p, e.t, lean_);
     const bool near_dock = p.z < cfg_.dock.z + cfg_.dock_zone;
     if (near_dock) pull_ *= std::exp(-dt / kTrimDecay);
     for (int i = 0; i < kLines; ++i) {

@@ -45,8 +45,8 @@ whole rig), then fly.
 
 - **The controller:** the motion core from `core/`, unchanged, run every 1 ms on the PC clock.
 - **The rig:** four ideal drives, fail-safe brakes, an E-stop chain, stretchy lines and a
-  ball that settles where the lines and gravity balance it. It is quasi-static: the ball
-  doesn't swing.
+  ball that settles where the lines and gravity balance it, leaning as a real one would with
+  its weight hanging below its centre. It is quasi-static: the ball doesn't swing.
 - **Wind:** a speed that wanders around the set value. It feeds the wind sensor twice a
   second, and pushes on the ball from the open front (toward +y) with the drag of a 14 in
   sphere.
@@ -54,7 +54,9 @@ whole rig), then fly.
 ## The viewer
 
 - **3-D view:** drag to turn, scroll to zoom, or pick a view. Lines turn amber when slack and
-  red when overloaded. The orange cross is where the controller thinks the ball is.
+  red when overloaded. The orange cross is where the controller thinks the ball is. The
+  amber dot marks the face, and the readout gives the lean, the turn, and the lean the
+  controller's model expects.
 - **The controller's screen:** remote on/off, arm (with the confirmation), disarm, home,
   park, STOP, go to a point, and hold-to-run jog. These work whether remote control is on or
   off, as on the real touchscreen.

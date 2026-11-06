@@ -1,6 +1,8 @@
 // Cable geometry: line lengths for a ball position, the tensions the lines should carry,
-// and where the ball may go. The ball is treated as staying level (the lean model from
-// docs/plan.md section 4 comes later, as a correction table).
+// how the ball leans, and where the ball may go.
+//
+// The ball's orientation is a rotation vector `rot` (radians; zero is upright and square
+// to the audience). Attachment points turn with it.
 #pragma once
 
 #include <array>
@@ -12,7 +14,7 @@ namespace leota {
 using LineArray = std::array<double, kLines>;
 
 // Straight-line distance from each pulley to its attachment point.
-LineArray geometric_lengths(const RigConfig& cfg, const Vec3& centre);
+LineArray geometric_lengths(const RigConfig& cfg, const Vec3& centre, const Vec3& rot = {});
 
 struct Tensions {
     bool feasible = false;  // every line at or above the minimum
@@ -30,11 +32,26 @@ struct Tensions {
 // that can't be done, `feasible` is false and `t` is the spread with the highest lowest
 // tension.
 Tensions expected_tensions(const RigConfig& cfg, const Vec3& centre, double min_tension,
-                           const Vec3& accel = {});
+                           const Vec3& accel = {}, const Vec3& rot = {});
 
 // How much line to pay out so the lines reach the geometric lengths at tensions `t`:
 // a line stretches by t / EA of its length.
-LineArray unstretched_lengths(const RigConfig& cfg, const Vec3& centre, const LineArray& t);
+LineArray unstretched_lengths(const RigConfig& cfg, const Vec3& centre, const LineArray& t,
+                              const Vec3& rot = {});
+
+// How the ball hangs at `centre`. Off centre the near lines are steeper than the far
+// ones, so their pull no longer balances around the ball and it leans until its weight,
+// hanging below its centre, balances them. `guess` is where to start (last cycle's
+// answer); a few steps are enough from there.
+struct Pose {
+    Vec3 rot;       // the ball's lean and turn
+    Tensions t;     // the tensions that hold it there
+    bool ok = false;
+};
+Pose hanging_pose(const RigConfig& cfg, const Vec3& centre, double min_tension, const Vec3& guess = {});
+// The twisting pull on the ball about its centre (N·mm) at a pose with tensions t:
+// zero when it hangs still.
+Vec3 net_torque(const RigConfig& cfg, const Vec3& centre, const Vec3& rot, const LineArray& t);
 
 // Whether the ball's centre may be at a point, and if not, why.
 enum class Spot { Ok, Outside, Table, Slack, Overload };

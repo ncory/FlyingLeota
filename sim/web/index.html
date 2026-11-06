@@ -243,7 +243,8 @@ function render() {
   $('#log').textContent = S.log.join('\n');
   const p = S.position, q = S.ball;
   $('#readout').textContent = `commanded  x ${fmt(p.x)}  y ${fmt(p.y)}  z ${fmt(p.z)} mm\n` +
-    `ball         x ${fmt(q.x, 1)}  y ${fmt(q.y, 1)}  z ${fmt(q.z, 1)} mm${S.resting ? '  (on the dock)' : ''}`;
+    `ball         x ${fmt(q.x, 1)}  y ${fmt(q.y, 1)}  z ${fmt(q.z, 1)} mm${S.resting ? '  (on the dock)' : ''}\n` +
+    `lean         ${S.tilt.toFixed(1)}°, turned ${fmt(S.turn, 2)}° (the model says ${S.model_tilt.toFixed(1)}°)`;
   $('#readout').style.whiteSpace = 'pre';
 }
 
@@ -303,6 +304,13 @@ const dot = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
 const cross = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
 const norm = (a) => { const l = Math.hypot(a[0], a[1], a[2]) || 1; return [a[0] / l, a[1] / l, a[2] / l]; };
 const P = (o) => [o.x, o.y, o.z];
+// Rotates v by a rotation vector, as the controller does.
+function rot3(rv, v) {
+  const th = Math.hypot(rv[0], rv[1], rv[2]);
+  if (th < 1e-12) return v;
+  const k = rv.map(x => x / th), c = Math.cos(th), s = Math.sin(th), kv = dot(k, v), kx = cross(k, v);
+  return [0, 1, 2].map(i => v[i] * c + kx[i] * s + k[i] * kv * (1 - c));
+}
 
 function draw() {
   const dpr = window.devicePixelRatio || 1, w = canvas.clientWidth, h = canvas.clientHeight;
@@ -354,6 +362,13 @@ function draw() {
   g.addColorStop(0, 'rgba(156,196,255,.55)'); g.addColorStop(1, 'rgba(29,58,94,.35)');
   ctx.fillStyle = g; ctx.strokeStyle = '#9CC4FF'; ctx.lineWidth = 1.5;
   ctx.beginPath(); ctx.arc(c[0], c[1], rad, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+  // A mark on the face: which way it points, and how it leans.
+  const R = S.config.ball_radius, face = rot3(S.rotation, [0, -R, 0]), crown = rot3(S.rotation, [0, 0, R]);
+  const f = proj([S.ball.x + face[0], S.ball.y + face[1], S.ball.z + face[2]]);
+  const k = proj([S.ball.x + crown[0], S.ball.y + crown[1], S.ball.z + crown[2]]);
+  ctx.strokeStyle = 'rgba(245,196,107,.8)'; ctx.lineWidth = 1.2;
+  ctx.beginPath(); ctx.moveTo(k[0], k[1]); ctx.lineTo(c[0], c[1]); ctx.stroke();
+  ctx.fillStyle = '#F5C46B'; ctx.beginPath(); ctx.arc(f[0], f[1], Math.max(3, rad * 0.12), 0, Math.PI * 2); ctx.fill();
   const m = proj(P(S.position));
   ctx.strokeStyle = '#F5A524'; ctx.lineWidth = 1.5;
   ctx.beginPath(); ctx.moveTo(m[0] - 6, m[1]); ctx.lineTo(m[0] + 6, m[1]); ctx.moveTo(m[0], m[1] - 6); ctx.lineTo(m[0], m[1] + 6); ctx.stroke();

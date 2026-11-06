@@ -20,7 +20,7 @@ Needs CMake 3.16 or later and a C++17 compiler. The tests take under a second.
 | File | Does |
 | --- | --- |
 | `config.hpp` | Everything about one rig: pulleys, ball, workspace, limits, timings. `gazebo_config()` is this year's site. `check_config()` finds mistakes. |
-| `geometry.hpp` | Line lengths for a ball position, the tensions that hold it there, how much line to pay out for the stretch, and whether a point or a path is allowed. |
+| `geometry.hpp` | Line lengths for a ball position, the tensions that hold it there, how the ball leans there, how much line to pay out for the stretch, and whether a point or a path is allowed. |
 | `profile.hpp` | One axis's motion: trapezoid plans from any speed, timed moves (the same maths as Show Controller's `plan_speed`), jog, stops, and the smoothing filter that limits jerk. |
 | `wind.hpp` | Gusts, averages, the Green, Amber and Red levels, and the Red hold. |
 | `hardware.hpp` | What the controller needs from the hardware. The firmware implements it. |
@@ -44,6 +44,13 @@ Needs CMake 3.16 or later and a C++17 compiler. The tests take under a second.
 - **Flying.** Each axis plans its own trapezoid, and a moving-average filter turns it into an
   S-curve. Every cycle the rig works out the ball's position, the tensions that should hold it
   there, and from those how much line each winch should pay out (allowing for stretch).
+- **The lean.** Off centre, the ball leans until its weight, hanging below its centre
+  (`centre_of_weight`), balances the lines' uneven pull: a few degrees, while staying square
+  to the audience. `hanging_pose()` solves for the lean, and line lengths are worked out to
+  the leaning attachment points. It is re-solved every `lean_every` cycles (10), starting
+  from the last answer; the lean changes slowly, so the last answer serves in between.
+  Without it the ball lands up to about 15 mm off target; with it, within 0.2 mm in the
+  simulation.
 - **Four lines, three axes.** One line is always extra, so the lines can pull against each
   other without the ball moving. The tensions are spread so the highest is as low as
   possible, keeping every line at least `plan_tension_min` (8 N) tight. Slack is a fault below
@@ -66,11 +73,16 @@ up most pulley-position error. With a pulley 120 mm sideways and 80 mm low, the 
 within about 15 mm and the tensions are within about 5 N. Errors of a few centimetres cost a
 millimetre or two.
 
+## On the ESP32-P4
+
+On this PC a control cycle's geometry takes about 0.3 µs, or 4 µs on a cycle that re-solves
+the lean. The P4 runs at about 360–400 MHz, and its floating-point unit is single precision,
+so the core's `double` maths runs in software there. Measure the cycle time on the board in
+Phase 1. If it's tight, re-solve the lean less often (`lean_every`), or switch the core to
+`float`.
+
 ## Not yet
 
-- The lean model (docs/plan.md, section 4). The ball is treated as staying level, so its
-  attachment points are a few mm off when it leans. This comes later as a correction table
-  made on a PC.
 - The SCMP proposed multi-axis `move`. Separate moves with the same duration do the job.
 - Per-rig settings in flash, and SCMP `config` keys beyond the axis limits.
 

@@ -1,7 +1,7 @@
 // A simulated rig: four ideal drives, fail-safe brakes, an E-stop chain, stretchy lines
-// and a ball that settles where the lines and gravity balance it (quasi-static: no swing).
-// The ball rests in the dock's cup when the lines don't hold its weight. For tests and
-// the PC simulator; the firmware doesn't use it.
+// and a ball that settles where the lines and gravity balance it, position and lean
+// both (quasi-static: no swing). The ball rests upright in the dock's cup when the lines
+// don't hold its weight. For tests and the PC simulator; the firmware doesn't use it.
 #pragma once
 
 #include "leota/hardware.hpp"
@@ -33,6 +33,7 @@ public:
     void tension_noise(double amplitude_n) { noise_ = amplitude_n; }
 
     Vec3 ball() { solve(); return ball_; }
+    Vec3 rotation() { solve(); return rot_; }  // the ball's lean and turn (rotation vector)
     bool resting() { solve(); return resting_; }
     bool fell() { solve(); return fell_; }
     bool enabled() const { return enabled_; }
@@ -42,14 +43,16 @@ public:
 
 private:
     void solve();
-    bool equilibrium(Vec3& c) const;  // free hanging; false if it can't hang
-    void forces(const Vec3& c, std::array<double, kLines>& t) const;
+    bool equilibrium(Vec3& c, Vec3& rot) const;  // free hanging; false if it can't hang
+    void forces(const Vec3& c, const Vec3& rot, std::array<double, kLines>& t) const;
+    // The net push (N) and twist (N·mm, about the centre) on the ball at a pose.
+    void residual(const Vec3& c, const Vec3& rot, double out[6]) const;
 
     RigConfig cfg_;
     std::array<double, kLines> pos_{}, zero_{};  // drive counts; line out = zero + pos
     std::array<bool, kLines> alarm_{}, cut_{};
     std::array<double, kLines> tension_{};
-    Vec3 ball_, push_;
+    Vec3 ball_, rot_, push_;
     bool enabled_ = false, released_ = false, estop_ = false;
     bool resting_ = true, fell_ = false, dirty_ = true;
     double noise_ = 0.0;

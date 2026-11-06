@@ -680,10 +680,12 @@ The motion task never waits on the network, the screen or flash.
   distance from its pulley exit point to its attachment point on the head, plus the
   arc wrapped on the pulley. Motor angle = length ÷ drum radius.
 - **The lean is part of the kinematics.** The ball leans a few degrees off center
-  (section 4), which moves the attachment points. Working on a PC, a model finds the
-  ball's resting pose and line lengths across the workspace. Those go into a table that
-  the controller looks up and interpolates. Without it, the ball would land up to about
-  2 cm off target, and the tension model would be wrong.
+  (section 4), which moves the attachment points. The controller solves how the ball
+  hangs at its commanded position and works the line lengths out to the leaning
+  attachment points. It re-solves this every 10 cycles, from the last answer; the lean
+  changes slowly. (Built in `core/`. A table made on a PC was the first idea, but solving
+  it directly was simpler and fast enough.) Without it, the ball lands up to about 15 mm
+  off target in the simulation; with it, within 0.2 mm.
 - **Tension management:** the model spreads the tension so the highest line is as low as
   possible, with every line at least 8 N (slack is a fault below 5 N, so plans never sit on
   that line). A slow loop then compares measured tensions with the model. It corrects only
@@ -919,7 +921,7 @@ flowchart LR
 | --- | --- | --- |
 | **0. Buy bench parts** | See "What to buy now" below. | |
 | **1. Bench electronics** | Ethernet and an SCMP session with Show Controller's SCMP client. Touchscreen running. **Step pulses from the P4** on a logic analyzer: smooth at very slow speeds, no glitches while the screen and network are busy. A CAN link to the ODrive. One E-stop that cuts the 48 V supply through a contactor. | That one ESP32-P4 can do motion, network and screen together. Step pulses on the P4 are the least proven part (FastAccelStepper lists P4 support as experimental), so this test comes first. |
-| **2. Simulation** (done, except the lean) | Kinematics with the lean (section 4), profiles and state machine, unit-tested on a PC. An SCMP simulator. | Firmware structure. Needs no hardware. Built: `core/` (59 tests) and `sim/`; Show Controller flies the simulated head. The lean correction is still to do. |
+| **2. Simulation** (done) | Kinematics with the lean (section 4), profiles and state machine, unit-tested on a PC. An SCMP simulator. | Firmware structure. Needs no hardware. Built: `core/` (64 tests, the lean included) and `sim/`; Show Controller flies the simulated head. |
 | **3. One-winch tests** | A winch on the floor, a line up over a pulley at about 2.4 m (a beam or a temporary post), down to a dead weight. Water jugs or sandbags of 2, 5, 10 and 15 kg give line tensions across the full range (20–150 N). Run both motor types on the same rig. See below. | Motor type, drum size, brake size, and a short list of lines. |
 | **4. Gazebo test setup** | Buy three more winches of the chosen type. Put the gazebo up somewhere sheltered and mount them on it. Do the inward-pull test first. Fly a dummy head of the right weight and size (a cheap ball with weights inside, hung from a copy of the top fitting). Check that the lean and facing match the model. Dock homing, tension management, settling after moves, S-curve tuning, the joystick from Show Controller. | The control approach works. The final pin plan and I/O carrier board. |
 | **5. Full scale** | The real head. Wind tests with a fan or leaf blower (section 6). Failure tests: E-stop at full speed, unplug Ethernet, cut power, a line break on the dummy head. | Wind limits. Final line choice. |

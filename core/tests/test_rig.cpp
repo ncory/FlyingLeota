@@ -333,3 +333,30 @@ TEST_CASE("two-axis mode has no y axis") {
     REQUIRE(s.fly_to({300, 0, 1300}, 2.0));
     CHECK(dist(s.plant.ball(), {300, 0, 1300}) < 0.5);
 }
+
+TEST_CASE("the simulated ball leans just as the controller expects") {
+    Sim s;
+    REQUIRE(s.arm_and_home());
+    for (const Vec3& p : {Vec3{500, 0, 1230}, Vec3{-450, 350, 1100}, Vec3{300, -600, 1400}}) {
+        REQUIRE(s.fly_to(p, 2.5));
+        s.run(0.5);
+        CHECK((s.plant.rotation() - s.rig.lean()).norm() < 1e-4);  // radians
+        CHECK(s.plant.rotation().norm() > 0.02);                   // it really does lean
+        CHECK(dist(s.plant.ball(), p) < 0.2);
+    }
+}
+
+TEST_CASE("without the lean model, the ball lands off target") {
+    RigConfig flat = gazebo_config();
+    flat.lean_model = false;
+    Sim s(flat, gazebo_config());  // the real ball still leans
+    REQUIRE(s.arm_and_home());
+    double worst = 0.0;
+    for (const Vec3& p : {Vec3{500, 0, 1230}, Vec3{-450, 350, 1100}, Vec3{-600, -600, 1000}}) {
+        REQUIRE(s.fly_to(p, 2.5));
+        s.run(0.5);
+        worst = std::max(worst, dist(s.plant.ball(), p));
+    }
+    MESSAGE("worst miss without the lean model: " << worst << " mm");
+    CHECK(worst > 3.0);
+}

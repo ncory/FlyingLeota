@@ -28,4 +28,14 @@ struct Vec3 {
 
 constexpr Vec3 operator*(double k, const Vec3& v) { return v * k; }
 
+// Rotates v by a rotation vector: its direction is the axis, its length the angle in
+// radians. The ball's lean and turn are kept this way.
+inline Vec3 rotate(const Vec3& rv, const Vec3& v) {
+    const double th = rv.norm();
+    if (th < 1e-12) return v + rv.cross(v);
+    const Vec3 k = rv * (1.0 / th);
+    const double c = std::cos(th), s = std::sin(th);
+    return v * c + k.cross(v) * s + k * (k.dot(v) * (1.0 - c));
+}
+
 }  // namespace leota

@@ -1,3 +1,4 @@
+#include <cmath>
 #include "doctest.h"
 #include "leota/geometry.hpp"
 
@@ -5,10 +6,11 @@ using namespace leota;
 
 namespace {
 
-Vec3 net_force(const RigConfig& cfg, const Vec3& c, const LineArray& t) {
+// The lines' total pull on the ball (N), with the ball turned by `rot`.
+Vec3 net_force(const RigConfig& cfg, const Vec3& c, const LineArray& t, const Vec3& rot = {}) {
     Vec3 f;
     for (int i = 0; i < kLines; ++i) {
-        Vec3 d = cfg.lines[i].anchor - (c + cfg.lines[i].attach);
+        Vec3 d = cfg.lines[i].anchor - (c + rotate(rot, cfg.lines[i].attach));
         f += d * (t[i] / d.norm());
     }
     return f;
@@ -105,4 +107,46 @@ TEST_CASE("two-axis mode pins the depth") {
     const Box ws = workspace(cfg);
     CHECK(check_point(cfg, {0, 0, 1200}, ws) == Spot::Ok);
     CHECK(check_point(cfg, {0, 100, 1200}, ws) == Spot::Outside);
+}
+
+TEST_CASE("in the middle the ball hangs upright") {
+    const RigConfig cfg = gazebo_config();
+    const Pose p = hanging_pose(cfg, {0, 0, 1200}, cfg.plan_tension_min);
+    REQUIRE(p.ok);
+    CHECK(p.rot.norm() < 1e-6);
+}
+
+TEST_CASE("off centre the ball leans a few degrees, but stays square to the audience") {
+    const RigConfig cfg = gazebo_config();
+    const double deg = 180.0 / 3.14159265358979;
+    for (const Vec3& c : {Vec3{500, 0, 1230}, Vec3{500, 500, 1230}, Vec3{-600, 300, 1000}}) {
+        CAPTURE(c.x);
+        CAPTURE(c.y);
+        const Pose p = hanging_pose(cfg, c, cfg.plan_tension_min);
+        REQUIRE(p.ok);
+        const Vec3 tau = net_torque(cfg, c, p.rot, p.t.t);
+        CHECK(tau.norm() < 1e-3);
+        const Vec3 f = net_force(cfg, c, p.t.t, p.rot);  // the lines hold the ball's weight
+        CHECK(std::hypot(f.x, f.y) < 1e-6);
+        CHECK(f.z == doctest::Approx(cfg.mass * kGravity));
+        const double tilt = std::hypot(p.rot.x, p.rot.y) * deg, turn = std::fabs(p.rot.z) * deg;
+        CHECK(tilt > 1.5);
+        CHECK(tilt < 8.0);
+        CHECK(turn < 0.1);
+    }
+    // Along the x axis it tips about the y axis only.
+    const Pose side = hanging_pose(cfg, {500, 0, 1230}, cfg.plan_tension_min);
+    CHECK(std::fabs(side.rot.x) < 1e-6);
+    CHECK(std::fabs(side.rot.y) * deg == doctest::Approx(3.3).epsilon(0.2));
+}
+
+TEST_CASE("lines from a leaning ball reach their own attachment points") {
+    const RigConfig cfg = gazebo_config();
+    const Vec3 c{400, -300, 1300};
+    const Pose p = hanging_pose(cfg, c, cfg.plan_tension_min);
+    const LineArray level = geometric_lengths(cfg, c), leaning = geometric_lengths(cfg, c, p.rot);
+    double most = 0.0;
+    for (int i = 0; i < kLines; ++i) most = std::max(most, std::fabs(level[i] - leaning[i]));
+    CHECK(most > 1.0);   // the lean moves the attachment points by millimetres
+    CHECK(most < 10.0);
 }

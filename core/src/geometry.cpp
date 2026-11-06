@@ -26,17 +26,18 @@ bool solve3(const Vec3 m[3], const Vec3& b, Vec3& y) {
 
 }  // namespace
 
-LineArray geometric_lengths(const RigConfig& cfg, const Vec3& c) {
+LineArray geometric_lengths(const RigConfig& cfg, const Vec3& c, const Vec3& rot) {
     LineArray out{};
     for (int i = 0; i < kLines; ++i)
-        out[i] = (cfg.lines[i].anchor - (c + cfg.lines[i].attach)).norm();
+        out[i] = (cfg.lines[i].anchor - (c + rotate(rot, cfg.lines[i].attach))).norm();
     return out;
 }
 
-Tensions expected_tensions(const RigConfig& cfg, const Vec3& c, double tmin, const Vec3& accel) {
+Tensions expected_tensions(const RigConfig& cfg, const Vec3& c, double tmin, const Vec3& accel,
+                           const Vec3& rot) {
     std::array<Vec3, kLines> u;
     for (int i = 0; i < kLines; ++i) {
-        Vec3 d = cfg.lines[i].anchor - (c + cfg.lines[i].attach);
+        Vec3 d = cfg.lines[i].anchor - (c + rotate(rot, cfg.lines[i].attach));
         u[i] = d * (1.0 / d.norm());
     }
     // The lines must supply m (a + g) upward, in newtons (accel is in mm/s²).
@@ -113,10 +114,62 @@ Tensions expected_tensions(const RigConfig& cfg, const Vec3& c, double tmin, con
     return out;
 }
 
-LineArray unstretched_lengths(const RigConfig& cfg, const Vec3& c, const LineArray& t) {
-    LineArray g = geometric_lengths(cfg, c);
+LineArray unstretched_lengths(const RigConfig& cfg, const Vec3& c, const LineArray& t,
+                              const Vec3& rot) {
+    LineArray g = geometric_lengths(cfg, c, rot);
     for (int i = 0; i < kLines; ++i) g[i] /= 1.0 + std::max(0.0, t[i]) / cfg.line_ea;
     return g;
+}
+
+Vec3 net_torque(const RigConfig& cfg, const Vec3& c, const Vec3& rot, const LineArray& t) {
+    Vec3 tau;
+    for (int i = 0; i < kLines; ++i) {
+        const Vec3 r = rotate(rot, cfg.lines[i].attach);
+        const Vec3 d = cfg.lines[i].anchor - (c + r);
+        tau += r.cross(d * (t[i] / d.norm()));
+    }
+    const Vec3 cg = rotate(rot, cfg.centre_of_weight);
+    tau += cg.cross({0.0, 0.0, -cfg.mass * kGravity});
+    return tau;
+}
+
+Pose hanging_pose(const RigConfig& cfg, const Vec3& c, double tmin, const Vec3& guess) {
+    Pose pose;
+    pose.rot = guess;
+    // Newton's method on the three rotation angles: at each guess the tensions balance
+    // the ball's weight, and the step turns the ball so their twist balances too.
+    auto torque = [&](const Vec3& rot) {
+        return net_torque(cfg, c, rot, expected_tensions(cfg, c, tmin, {}, rot).t);
+    };
+    for (int iter = 0; iter < 12; ++iter) {
+        const Vec3 tau = torque(pose.rot);
+        if (tau.norm() < 1e-4) {  // N·mm: far below anything that matters
+            pose.ok = true;
+            break;
+        }
+        const double h = 1e-6;
+        Vec3 col[3];
+        for (int k = 0; k < 3; ++k) {
+            Vec3 r = pose.rot;
+            (k == 0 ? r.x : k == 1 ? r.y : r.z) += h;
+            col[k] = (torque(r) - tau) * (1.0 / h);
+        }
+        // Solve J step = -tau, J's columns being col[0..2] (Cramer's rule).
+        const double det = col[0].dot(col[1].cross(col[2]));
+        if (std::fabs(det) < 1e-12) break;
+        const Vec3 b = -tau;
+        Vec3 step{b.dot(col[1].cross(col[2])) / det, col[0].dot(b.cross(col[2])) / det,
+                  col[0].dot(col[1].cross(b)) / det};
+        const double len = step.norm();
+        if (len > 0.1) step = step * (0.1 / len);  // no more than about 6° a step
+        pose.rot += step;
+        if (len < 1e-10) {
+            pose.ok = true;
+            break;
+        }
+    }
+    pose.t = expected_tensions(cfg, c, tmin, {}, pose.rot);
+    return pose;
 }
 
 const char* spot_text(Spot s) {
