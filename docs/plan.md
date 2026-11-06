@@ -4,8 +4,9 @@ A head that floats in the air, held by four motor-driven lines. The motion contr
 is an ESP32 with wired Ethernet and a local touchscreen. Show Controller controls it
 over the Show Controller Motion Protocol (SCMP).
 
-Status: research and planning, November 2026. No code yet. Every "Proposed" item below
-needs a yes from Nate before it is built.
+Status, November 2026: planning done; the motion core is written and tested on a PC
+(`core/`, see its README). No hardware yet. Every "Proposed" item below needs a yes from
+Nate before it is built.
 
 ## Summary
 
@@ -682,9 +683,14 @@ The motion task never waits on the network, the screen or flash.
   ball's resting pose and line lengths across the workspace. Those go into a table that
   the controller looks up and interpolates. Without it, the ball would land up to about
   2 cm off target, and the tension model would be wrong.
-- **Tension management:** a slow outer loop (10–50 Hz) compares measured tensions with
-  the tensions the force model predicts. It then lengthens or shortens each line by a
-  small amount to match. Large errors are faults (below).
+- **Tension management:** the model spreads the tension so the highest line is as low as
+  possible, with every line at least 8 N (slack is a fault below 5 N, so plans never sit on
+  that line). A slow loop then compares measured tensions with the model. It corrects only
+  how hard the lines pull against each other, by paying line in or out along the one
+  combination that doesn't move the ball. Any other error means the ball isn't where the
+  model thinks; correcting it would hide that, so it is left to show, and a large one is a
+  fault (below). (Built this way in `core/`: trimming every line freely let a bad
+  calibration quietly move the ball.)
 - **Flex compensation** (later): length correction for line stretch under load, as in
   Hangprinter. Small with UHMWPE line, large with nylon.
 - **Workspace check:** each target, and each point on the way to it, must be inside the
@@ -885,6 +891,7 @@ Site rules that make the numbers better:
 | Line snags a curtain or set piece | Tensions jump | `overload` or `tension_mismatch`. Keep-out zones. Curtain clearance. |
 | Gazebo sways, or the canopy flaps | Head moves or shivers with the frame | Stakes or weights on every leg. Canopy tied down tight. The inward-pull test (section 2). Tension swing raises the wind level. |
 | Calibration drift (line creep, temperature) | Slowly growing tension mismatch | Re-home at the dock at the start of each show day. Tension trim. Low-stretch line. |
+| Pulley positions measured wrong | The ball lands a little off | Homing at the dock soaks up most of it. In the simulation, a pulley 120 mm sideways and 80 mm low put the ball about 15 mm off; a few centimetres cost a millimetre or two. Measure the pulleys to within a couple of centimetres. |
 | Wrong command from Show Controller | Unexpected move | Soft limits, workspace checks, Local mode, and SCMP's rules. Arming by schedule only if the device allows it (Q7). |
 
 ## 8. Plan of work: tests that settle the design

@@ -1,0 +1,46 @@
+// The Show Controller Motion Protocol, version 1 (BEDShowController docs/scmp.md),
+// including its Optional fields: remote/local, wind, lines, coupled axes and message.
+// Transport-free: the firmware and the PC simulator feed it datagrams or lines and send
+// back what it returns.
+#pragma once
+
+#include <array>
+#include <cstdint>
+#include <string>
+#include <string_view>
+
+#include "leota/rig.hpp"
+
+namespace leota {
+
+constexpr int kScmpVersion = 1;
+
+class ScmpServer {
+public:
+    explicit ScmpServer(Rig& rig, std::string firmware = "flying-leota 0.1.0");
+
+    // One message in. Returns the acknowledgement to send back, or "" for none
+    // (a heartbeat). Any message counts as hearing from Show Controller.
+    std::string handle(std::string_view message, double now);
+
+    // The status message, as JSON.
+    std::string status() const;
+    // Whether a status is due: 10 a second while anything moves, at least once a
+    // second otherwise, and at once when the state, faults, remote or wind level change.
+    bool status_due(double now);
+    void status_soon() { force_ = true; }  // e.g. after a command that changes things
+
+private:
+    struct Answer { bool used = false; long long seq = 0; std::string ack; };
+    std::string signature() const;
+
+    Rig& rig_;
+    std::string firmware_;
+    std::array<Answer, 16> answered_{};  // the last 16 acks, to answer repeats again
+    int next_ = 0;
+    double last_status_ = -1e9;
+    std::string last_sig_;
+    bool force_ = false;
+};
+
+}  // namespace leota
