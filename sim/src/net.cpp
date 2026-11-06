@@ -32,6 +32,7 @@ int bound_port(int fd) {
 const char* reason(int status) {
     switch (status) {
         case 200: return "OK";
+        case 204: return "No Content";
         case 400: return "Bad Request";
         case 404: return "Not Found";
         case 405: return "Method Not Allowed";
@@ -174,8 +175,8 @@ void HttpServer::finish(int fd, Conn& c, const Handler& handler) {
     if (!ready) return;
     std::string out = "HTTP/1.1 " + std::to_string(res.status) + " " + reason(res.status) +
                       "\r\nContent-Type: " + res.type + "\r\nContent-Length: " +
-                      std::to_string(res.body.size()) +
-                      "\r\nCache-Control: no-store\r\nConnection: close\r\n\r\n" + res.body;
+                      std::to_string(res.body.size()) + "\r\n" + res.headers +
+                      "Cache-Control: no-store\r\nConnection: close\r\n\r\n" + res.body;
     for (size_t sent = 0; sent < out.size();) {  // small replies: a blocking loop is fine
         const ssize_t n = write(fd, out.data() + sent, out.size() - sent);
         if (n < 0) {

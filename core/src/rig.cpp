@@ -270,6 +270,17 @@ Result Rig::park(double) {
     return {};
 }
 
+Result Rig::clear_faults(double) {
+    if (estop_ || hw_.estop_open()) return {Refusal::EStop, "The E-stop chain is open."};
+    if (state_ != RigState::Fault) return {};
+    if (cfg_.wind.enabled && (faults_ & faults::Wind) && wind_.level() == WindLevel::Red)
+        return {Refusal::Weather, "The wind is still Red."};
+    faults_ = 0;
+    state_ = RigState::Disarmed;
+    message_ = "Faults cleared. Disarmed.";
+    return {};
+}
+
 Result Rig::set_limits(int axis, const AxisLimits& l) {
     if (!axis_present(axis)) return {Refusal::NoAxis, "There's no such axis."};
     if (!(l.min < l.max) || l.max_velocity <= 0 || l.max_accel <= 0)

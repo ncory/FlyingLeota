@@ -70,6 +70,7 @@ public:
     Result jog(int axis, double velocity, double now);
     Result stop(std::optional<double> decel, double now);
     Result park(double now);  // fly back over the dock and set the ball down
+    Result clear_faults(double now);  // once their causes are gone; stays disarmed
     Result set_limits(int axis, const AxisLimits& limits);
     void set_heartbeat_timeout(double s) { cfg_.heartbeat_timeout = s; }
 
@@ -86,6 +87,8 @@ public:
     bool remote() const { return remote_; }
     bool estop() const { return estop_; }
     bool parking() const { return park_ != Park::None; }
+    bool drives_on() const { return drives_on_; }
+    bool brakes_released() const { return brakes_released_; }
     bool busy() const;  // anything moving, or settling
     std::uint32_t faults() const { return faults_; }
     const std::string& message() const { return message_; }

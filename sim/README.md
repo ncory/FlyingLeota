@@ -64,9 +64,16 @@ whole rig), then fly.
   unplug the wind sensor, snag the ball with a 60 N pull, cut or mend a line, raise a drive
   alarm, or reset everything.
 - **Lines, wind, the Show Controller link, and a log** of commands and what the rig said.
+- **Touchscreen:** the Touchscreen button, beside the view buttons, swaps the 3-D view for the controller's real
+  touchscreen (`ui/`), drawn by LVGL in the simulator. Click to tap; hold to hold.
+
+![The controller's touchscreen in the simulator](../docs/images/simulator-touchscreen.png)
 
 The page uses the same JSON as the controller's future status screen: `GET /api/state` and
-`POST /api/action` with `{"do": "arm"}` and so on.
+`POST /api/action` with `{"do": "arm"}` and so on. The touchscreen is `GET /api/screen` (a PNG,
+with its frame number in `X-Frame`; `?after=N` answers 204 if nothing has changed since frame
+N) and `POST /api/touch` with `{"x": 512, "y": 300, "down": true}`. Built with
+`-DLEOTA_UI=OFF`, the simulator has no touchscreen.
 
 ## Tests against Show Controller
 

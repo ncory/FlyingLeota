@@ -2,6 +2,7 @@
 
 #include <cmath>
 #include <cstdio>
+#include <ctime>
 
 #include "ArduinoJson.h"
 #include "web_page.hpp"
@@ -49,6 +50,9 @@ const char* refusal_text(const Result& r) { return r ? "ok" : r.detail.c_str(); 
 SimApp::SimApp(const Options& opt) : opt_(opt) { build(); }
 
 void SimApp::build() {
+#ifdef LEOTA_SIM_UI
+    ui_.reset();  // it holds the old rig
+#endif
     cfg_ = gazebo_config();
     cfg_.two_axis = opt_.two_axis;
     truth_ = cfg_;
@@ -58,6 +62,10 @@ void SimApp::build() {
     scmp_ = std::make_unique<ScmpServer>(*rig_, "flying-leota-sim 0.1.0");
     snag_ = 0.0;
     last_message_.clear();
+#ifdef LEOTA_SIM_UI
+    if (!screen_) screen_ = std::make_unique<Screen>();
+    ui_ = std::make_unique<Ui>(*rig_, screen_->display());
+#endif
 }
 
 double SimApp::wind_now(double now) const {
@@ -77,7 +85,12 @@ std::string SimApp::datagram(const std::string& msg, const Address& from, double
     const std::string reply = scmp_->handle(msg, now);
     const std::string& t = scmp_->last_type();
     if (t == "hello" || t == "heartbeat") {
-        if (!(status_to_ == from)) log(now, "Show Controller at " + from.text());
+        if (!(status_to_ == from)) {
+            log(now, "Show Controller at " + from.text());
+#ifdef LEOTA_SIM_UI
+            ui_->log(LogKind::Network, "Show Controller connected from " + from.text() + ".");
+#endif
+        }
         status_to_ = from;
     }
     last_heard_ = now;
@@ -96,6 +109,9 @@ std::string SimApp::datagram(const std::string& msg, const Address& from, double
             what += std::string(": refused, ") + (ack["error"].as<const char*>() ? ack["error"].as<const char*>() : "?");
         }
         log(now, what);
+#ifdef LEOTA_SIM_UI
+        ui_->log(LogKind::Show, what);
+#endif
     }
     return reply;
 }
@@ -115,6 +131,23 @@ std::string SimApp::step(double now) {
         last_message_ = rig_->message();
         log(now, last_message_);
     }
+#ifdef LEOTA_SIM_UI
+    if (now >= next_ui_) {
+        next_ui_ = now + 0.05;
+        UiLink link;
+        link.heard = last_heard_ < 0 ? -1.0 : now - last_heard_;
+        link.connected = link.heard >= 0 && link.heard < 1.5;
+        link.address = status_to_.set ? status_to_.text() : "";
+        link.commands = commands_;
+        link.own_address = opt_.host + ":" + std::to_string(opt_.scmp_port);
+        link.scmp_port = opt_.scmp_port;
+        char clock[8];
+        const std::time_t wall = std::time(nullptr);
+        std::strftime(clock, sizeof clock, "%H:%M", std::localtime(&wall));
+        ui_->update(now, link, clock);
+    }
+    screen_->run();
+#endif
     if (status_to_.set && scmp_->status_due(now)) return scmp_->status();
     return "";
 }
@@ -196,6 +229,9 @@ std::string SimApp::state_json(double now) {
     c["two_axis"] = cfg_.two_axis;
     c["tension_max"] = cfg_.tension_max;
     c["tension_min"] = cfg_.tension_min;
+#ifdef LEOTA_SIM_UI
+    c["touchscreen"] = true;
+#endif
     JsonArray lg = d["log"].to<JsonArray>();
     for (const std::string& s : log_) lg.add(s);
     std::string out;
@@ -271,8 +307,38 @@ std::string SimApp::action(const std::string& body, double now) {
     return s;
 }
 
-HttpResponse SimApp::http(const HttpRequest& req, double now) {
+HttpResponse SimApp::http(const HttpRequest& full, double now) {
     HttpResponse res;
+    HttpRequest req = full;
+    std::string query;
+    if (const size_t q = req.path.find('?'); q != std::string::npos) {
+        query = req.path.substr(q + 1);
+        req.path.resize(q);
+    }
+#ifdef LEOTA_SIM_UI
+    if (req.path == "/api/screen") {
+        // ?after=N: only if the screen has changed since frame N.
+        const unsigned after = query.rfind("after=", 0) == 0 ? static_cast<unsigned>(std::stoul(query.substr(6))) : ~0u;
+        res.headers = "X-Frame: " + std::to_string(screen_->frame()) + "\r\n";
+        if (after != ~0u && screen_->frame() <= after) {
+            res.status = 204;
+            return res;
+        }
+        res.type = "image/png";
+        res.body = screen_->png();
+        return res;
+    }
+    if (req.path == "/api/touch" && req.method == "POST") {
+        JsonDocument in;
+        if (!deserializeJson(in, req.body))
+            screen_->touch(in["x"] | 0, in["y"] | 0, in["down"] | false);
+        res.type = "application/json";
+        res.body = R"({"ok":true})";
+        return res;
+    }
+#else
+    (void)query;
+#endif
     if (req.path == "/" || req.path == "/index.html") {
         res.type = "text/html; charset=utf-8";
         res.body = kWebPage;

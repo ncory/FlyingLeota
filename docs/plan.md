@@ -6,7 +6,8 @@ over the Show Controller Motion Protocol (SCMP).
 
 Status, November 2026: planning done. The motion core (`core/`) and the PC simulator
 (`sim/`) are written and tested, and Show Controller flies the simulated head through its
-own SCMP client and Motion page. No hardware yet. Every "Proposed" item below needs a yes from
+own SCMP client and Motion page. The touchscreen (`ui/`) is built in LVGL and runs inside
+the simulator's page. No hardware yet. Every "Proposed" item below needs a yes from
 Nate before it is built.
 
 ## Summary
@@ -808,6 +809,10 @@ theme for a dark gazebo. Every color comes with a word, never alone.
 a clickable canvas of every screen (private: share it from its Share menu). It uses only
 flat panels, bars and lines, so it carries straight over to LVGL.
 
+**Built:** `ui/` is these screens in LVGL 9.2, the same code the firmware will run. On a PC
+it draws into the simulator, whose page shows the real screen and passes taps through. Its
+tests tap through arming, homing, STOP, jog, the Setup PIN and an E-stop.
+
 On every screen: a top bar with the state (DISARMED, ARMED, MOVING, FAULT, E-STOP) and
 pills for remote, the link to Show Controller and the wind level; a bottom bar with seven
 tabs and a large STOP that is always there.
@@ -921,7 +926,7 @@ flowchart LR
 | --- | --- | --- |
 | **0. Buy bench parts** | See "What to buy now" below. | |
 | **1. Bench electronics** | Ethernet and an SCMP session with Show Controller's SCMP client. Touchscreen running. **Step pulses from the P4** on a logic analyzer: smooth at very slow speeds, no glitches while the screen and network are busy. A CAN link to the ODrive. One E-stop that cuts the 48 V supply through a contactor. | That one ESP32-P4 can do motion, network and screen together. Step pulses on the P4 are the least proven part (FastAccelStepper lists P4 support as experimental), so this test comes first. |
-| **2. Simulation** (done) | Kinematics with the lean (section 4), profiles and state machine, unit-tested on a PC. An SCMP simulator. | Firmware structure. Needs no hardware. Built: `core/` (64 tests, the lean included) and `sim/`; Show Controller flies the simulated head. |
+| **2. Simulation** (done) | Kinematics with the lean (section 4), profiles and state machine, unit-tested on a PC. An SCMP simulator. | Firmware structure. Needs no hardware. Built: `core/` (65 tests, the lean included), `sim/`, and the touchscreen in `ui/`; Show Controller flies the simulated head. |
 | **3. One-winch tests** | A winch on the floor, a line up over a pulley at about 2.4 m (a beam or a temporary post), down to a dead weight. Water jugs or sandbags of 2, 5, 10 and 15 kg give line tensions across the full range (20–150 N). Run both motor types on the same rig. See below. | Motor type, drum size, brake size, and a short list of lines. |
 | **4. Gazebo test setup** | Buy three more winches of the chosen type. Put the gazebo up somewhere sheltered and mount them on it. Do the inward-pull test first. Fly a dummy head of the right weight and size (a cheap ball with weights inside, hung from a copy of the top fitting). Check that the lean and facing match the model. Dock homing, tension management, settling after moves, S-curve tuning, the joystick from Show Controller. | The control approach works. The final pin plan and I/O carrier board. |
 | **5. Full scale** | The real head. Wind tests with a fan or leaf blower (section 6). Failure tests: E-stop at full speed, unplug Ethernet, cut power, a line break on the dummy head. | Wind limits. Final line choice. |

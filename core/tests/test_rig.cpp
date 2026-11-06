@@ -360,3 +360,18 @@ TEST_CASE("without the lean model, the ball lands off target") {
     MESSAGE("worst miss without the lean model: " << worst << " mm");
     CHECK(worst > 3.0);
 }
+
+TEST_CASE("faults can be cleared without arming, once their cause is gone") {
+    Sim s;
+    REQUIRE(s.arm_and_home());
+    s.plant.set_estop(true);
+    s.run(0.1);
+    CHECK(s.rig.clear_faults(s.t).error == Refusal::EStop);
+    s.plant.set_estop(false);
+    s.run(0.1);
+    REQUIRE(s.rig.state() == RigState::Fault);
+    REQUIRE(s.rig.clear_faults(s.t));
+    CHECK(s.rig.state() == RigState::Disarmed);
+    CHECK(s.rig.faults() == 0);
+    CHECK_FALSE(s.rig.armed());
+}

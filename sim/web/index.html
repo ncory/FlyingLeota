@@ -24,6 +24,8 @@ main { display: flex; height: calc(100% - 62px); min-height: 0; }
 #view { flex: 1 1 auto; position: relative; min-width: 0; }
 canvas { display: block; width: 100%; height: 100%; cursor: grab; touch-action: none; }
 #views { position: absolute; left: 10px; top: 10px; display: flex; gap: 6px; }
+#screen { position: absolute; left: 50%; top: 58px; transform: translateX(-50%); display: none;
+  border: 1px solid var(--edge); border-radius: 6px; touch-action: none; cursor: pointer; background: #000; }
 #readout { position: absolute; left: 10px; bottom: 10px; font: 13px ui-monospace, monospace;
   color: var(--muted); background: rgba(11,14,19,.8); padding: 6px 10px; border-radius: 8px; }
 aside { width: 400px; flex: 0 0 400px; overflow-y: auto; border-left: 1px solid var(--line); padding: 12px; }
@@ -80,7 +82,9 @@ dialog::backdrop { background: rgba(5,7,10,.75); }
       <button data-view="front">From the audience</button>
       <button data-view="top">Top</button>
       <button data-view="side">Side</button>
+      <button id="screenBtn" style="display:none">Touchscreen</button>
     </div>
+    <canvas id="screen" width="1024" height="600" aria-label="The controller's touchscreen. Click or tap it."></canvas>
     <div id="readout"></div>
   </div>
   <aside>
@@ -284,7 +288,46 @@ const canvas = $('#c'), ctx = canvas.getContext('2d');
 const cam = { yaw: -0.35, pitch: 0.22, dist: 5200, target: [0, 0, 1150] };
 const VIEWS = { front: [0, 0.12], top: [0, 1.5], side: [Math.PI / 2, 0.12] };
 document.querySelectorAll('[data-view]').forEach(el => el.onclick = () => {
-  [cam.yaw, cam.pitch] = VIEWS[el.dataset.view]; cam.dist = 5200; });
+  setScreen(false); [cam.yaw, cam.pitch] = VIEWS[el.dataset.view]; cam.dist = 5200; });
+
+// ---- the touchscreen: the controller's real LVGL screens, drawn by the simulator ----
+const scr = $('#screen'), sctx = scr.getContext('2d');
+let screenOn = false, frame = -1, lastMove = 0;
+function setScreen(on) {
+  screenOn = on;
+  scr.style.display = on ? 'block' : 'none';
+  $('#screenBtn').classList.toggle('on', on);
+  $('#readout').style.display = on ? 'none' : 'block';
+  if (on) frame = -1;
+}
+$('#screenBtn').onclick = () => setScreen(!screenOn);
+function fitScreen() {
+  const v = $('#view'), w = Math.min(v.clientWidth - 20, (v.clientHeight - 68) * 1024 / 600);
+  scr.style.width = Math.max(200, w) + 'px';
+}
+async function pollScreen() {
+  if (screenOn) {
+    try {
+      const r = await fetch('/api/screen?after=' + frame);
+      if (r.status === 200) {
+        frame = +r.headers.get('X-Frame');
+        const bmp = await createImageBitmap(await r.blob());
+        sctx.drawImage(bmp, 0, 0);
+      }
+    } catch (e) { /* the simulator went away: poll() says so */ }
+  }
+  setTimeout(pollScreen, 80);
+}
+function touch(e, down) {
+  const r = scr.getBoundingClientRect();
+  const x = Math.round((e.clientX - r.left) / r.width * 1024), y = Math.round((e.clientY - r.top) / r.height * 600);
+  fetch('/api/touch', { method: 'POST', body: JSON.stringify({ x, y, down }) });
+}
+scr.addEventListener('pointerdown', (e) => { scr.setPointerCapture(e.pointerId); touch(e, true); });
+scr.addEventListener('pointermove', (e) => { if (e.buttons && performance.now() - lastMove > 40) { lastMove = performance.now(); touch(e, true); } });
+scr.addEventListener('pointerup', (e) => touch(e, false));
+scr.addEventListener('pointercancel', (e) => touch(e, false));
+pollScreen();
 let drag = null;
 canvas.addEventListener('pointerdown', (e) => { drag = [e.clientX, e.clientY, cam.yaw, cam.pitch]; canvas.setPointerCapture(e.pointerId); });
 canvas.addEventListener('pointermove', (e) => { if (!drag) return;
@@ -319,6 +362,8 @@ function draw() {
   ctx.fillStyle = '#0B0E13'; ctx.fillRect(0, 0, w, h);
   requestAnimationFrame(draw);
   if (!S) return;
+  if (S.config.touchscreen) $('#screenBtn').style.display = '';
+  if (screenOn) fitScreen();
   const B = basis(), focal = Math.min(w, h) * 1.25;
   const proj = (p) => { const d = sub(p, B.eye), z = dot(d, B.f);
     return [w / 2 + focal * dot(d, B.r) / z, h / 2 - focal * dot(d, B.u) / z, z]; };

@@ -39,6 +39,7 @@ struct HttpRequest {
 struct HttpResponse {
     int status = 200;
     std::string type = "text/plain; charset=utf-8", body;
+    std::string headers;  // extra header lines, each ending in \r\n
 };
 
 class HttpServer {

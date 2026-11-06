@@ -11,6 +11,10 @@
 #include "leota/rig.hpp"
 #include "leota/scmp.hpp"
 #include "net.hpp"
+#ifdef LEOTA_SIM_UI
+#include "leota/ui.hpp"
+#include "screen.hpp"
+#endif
 
 namespace leota_sim {
 
@@ -57,6 +61,11 @@ private:
     double snag_ = 0.0;       // N, a sideways pull on the ball
     std::string last_message_;
     std::deque<std::string> log_;
+#ifdef LEOTA_SIM_UI
+    std::unique_ptr<Screen> screen_;
+    std::unique_ptr<leota::Ui> ui_;
+    double next_ui_ = 0.0;
+#endif
 };
 
 }  // namespace leota_sim
