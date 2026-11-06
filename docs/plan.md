@@ -733,18 +733,26 @@ How the axes share state, since they're one machine:
 - Disarmed means the brakes are on. Arming enables the drives, waits for them to hold,
   then releases the brakes. Disarming does it in reverse after a controlled stop.
 
-**Proposed SCMP additions** (version 1.1, to agree in the BEDShowController repo):
+**SCMP additions: written up.** They are now in the protocol itself:
+`docs/scmp.md` in BEDShowController, section "Optional fields". They fit within version 1,
+because Show Controller already ignores fields it doesn't know and shows unknown errors
+and faults by name ("Room to grow"). In short:
 
-| Addition | Why |
+| Addition | What it does |
 | --- | --- |
-| Error `local` | The controller is in Local mode (touchscreen toggle or key). Commands that move it, arm it, home it or change config are refused. `hello`, `heartbeat`, `status` and `stop` are always accepted. |
-| Error `weather` | Wind lockout (section 6). |
-| `status` fields: `"remote": true/false`, `"wind": {"speed", "gust", "level"}`, `"lines": [{"tension", "length"}]` | Show Controller can show why the rig won't arm, and log conditions. |
-| Faults `slack_line`, `overload`, `tension_mismatch`, `drive_alarm`, `wind` | New fault causes, from section 5.3 and section 6. |
-| Optional: one `move` with several axes (`"axes": {"x": …, "z": …}`) | Starts them at exactly the same instant, without relying on three packets landing together. Not needed on a wired LAN, but cleaner. |
+| `remote` in `status`, error `local` | While the touchscreen or key has remote control off, `arm`, `home`, `move`, `jog` and `config` changes are refused with `local`. `stop` and `disarm` are always accepted. Turning remote off stops Show Controller's move in progress and keeps the rig armed. A lost heartbeat doesn't stop the rig in local mode. |
+| `wind` in `status`, error `weather`, fault `wind` | Speed, gust, average and level, plus `calm_left` during a Red hold. Amber shrinks the workspace and slows moves: a `move` outside it is refused with `weather`; a timed move that's now too fast runs slower and reports `late`. Red parks the rig, disarms, and refuses `arm` with `weather` until the hold time has passed. A missing sensor counts as Red. |
+| `lines` in `status` | `line`, `tension` (N), `length` (mm) and `swing` (N, over 2 s) for each line. |
+| Faults `slack_line`, `overload`, `tension_mismatch`, `drive_alarm` | The line and drive faults from section 5.3. |
+| `coupled` in the hello's info | `x`, `y` and `z` are one machine: `arm`, `disarm`, `home` and `stop` act on all axes; arming an armed axis changes nothing. |
+| `message` in `status` | One plain sentence about what the controller is doing on its own, such as "Parking: the wind is Red." |
+| Proposed: `move` with `axes` | Several axes in one command, only when the hello's info says `multi_move`. Not yet sent by Show Controller. |
 
-Before building this, check that Show Controller's SCMP client ignores status fields it
-doesn't know.
+The protocol's safety rules also gained one: a controller moves on its own only to make
+the rig safe, such as parking in high wind, and says so in `status`.
+
+Still to do in Show Controller (later, not needed for the first tests): show `remote`,
+`wind` and `lines` on its Motion page, and add them to its simulator.
 
 ### 5.5 States
 
@@ -784,16 +792,38 @@ stateDiagram-v2
 
 ### 5.6 Touchscreen
 
-7" landscape. Big targets, readable from a step back. Dark theme for a dark gazebo.
+7" landscape, 1024 × 600. Big targets (44 px or more), readable from a step back. A dark
+theme for a dark gazebo. Every color comes with a word, never alone.
+
+**Mockup:** [Flying Leota touchscreen](https://claude.ai/artifact/6oJ3awMVNcNbXTGZXjVBs2),
+a clickable canvas of every screen (private: share it from its Share menu). It uses only
+flat panels, bars and lines, so it carries straight over to LVGL.
+
+On every screen: a top bar with the state (DISARMED, ARMED, MOVING, FAULT, E-STOP) and
+pills for remote, the link to Show Controller and the wind level; a bottom bar with seven
+tabs and a large STOP that is always there.
 
 | Screen | Contents |
 | --- | --- |
-| **Status** (home) | A large state banner (E-STOP, DISARMED, ARMED, MOVING, FAULT). Remote: ON/OFF. Show Controller link: connected, from which address, last heartbeat. Position x/y/z. Homed. Wind: now, gust, level (green/amber/red). Four tension bars. Active faults. |
-| **Controls** | Remote enable/disable. Arm and disarm (press and hold 1 s). Home. Park at dock. A large STOP. Clear fault. |
-| **Jog** | Hold-to-run XY pad and Z slider, with a speed limit. Go to dock or the service position. Local mode only. |
-| **Diagnostics** | Each winch: position, drive alarm, brake, tension. Every input (E-stop chain, reset, key). Network settings and counters. |
-| **Setup** (PIN) | Pulley positions, drum radius, workspace box, keep-out zones, tension limits, wind thresholds, 2- or 3-axis mode. Calibration wizard. |
-| **Log** | Recent events in plain sentences. |
+| **Status** (home) | Top view of the gazebo with the ball, its lines, the workspace and the dock. Height gauge and x/y/z in mm. Four tension bars against their limits. Wind now and gust. A short system list: E-stop chain, drives, brakes, ball battery, faults. |
+| **Controls** | Remote on/off. Arm (with a confirmation dialog) and disarm (one tap). Home at the dock. Park at the dock. Clear fault. A note that the key switch overrides the screen. Buttons that can't be used say why. |
+| **Jog** | Arrows around a top view for x and y, up and down for z, three speeds, "Go to dock" and "Service position". Hold to move. Local mode only. |
+| **Weather** | Wind now, gust and average. A bar chart of the last 30 minutes' gusts with the Amber and Red lines. Line swing. The three levels and what each does, with the current one marked. The lockout, with a 15-minute calm countdown during a Red hold. |
+| **Diagnostics** | Each winch: line out, tension, what the model expects, swing, drive, brake, motor temperature. Safety inputs. Wind sensor health. Network. |
+| **Setup** (PIN) | 3-axis or 2-axis mode. Workspace, top clearance, speed and acceleration. Tension limits, heartbeat timeout, whether schedules may arm. Wind thresholds and hold time. Address and port. Calibration wizard. |
+| **Log** | Tonight's events in plain sentences, filtered by safety, motion, wind, network and show. |
+
+During an E-stop the Status screen turns red: which button is pressed, that motor power is
+off and the brakes are holding, and the steps to recover. Only the physical Reset button
+resets the chain; the screen says so.
+
+**Decided:**
+
+- **Arming asks for confirmation.** The dialog says what arming does, shows the checks that
+  passed (E-stop chain, wind, drives), and has a tick box: "I've checked that nobody is
+  under the ball and the lines are free." ARM stays greyed out until it is ticked.
+  Disarming is one tap: stopping is never slowed down.
+- **Weather has its own screen**, as above.
 
 The touchscreen STOP is a convenience, like Show Controller's stop-all. The physical
 E-stops are the safety function.
@@ -948,7 +978,7 @@ on a catch.
 | Q6 | How fast should it fly at most? | Sets drum size and motor choice. 0.3 m/s is assumed. |
 | Q7 | Can guests get near or under the workspace? Where will the operator stand? | Barricades, E-stop count and pendant cable length. |
 | Q8 | Design factor for the lines (theatre practice is often 8:1–10:1), and a line replacement schedule? | Line size, and so visibility. |
-| Q9 | Are you happy to extend SCMP (section 5.4) in the BEDShowController repo? | `local`, `weather` and the extra status fields need it. |
+| Q9 | Answered: SCMP extended, within version 1 (section 5.4). | |
 | Q10 | Budget ceiling? | Picks between the options in sections 3.2 and 3.5. |
 
 ## Sources
