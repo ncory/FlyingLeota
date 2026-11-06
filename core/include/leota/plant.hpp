@@ -26,6 +26,9 @@ public:
     void set_estop(bool open) { estop_ = open; if (open) enabled_ = released_ = false; }
     void set_alarm(int line, bool on) { alarm_[line] = on; }
     void cut_line(int line) { cut_[line] = true; dirty_ = true; }
+    void mend_line(int line) { cut_[line] = false; dirty_ = true; }
+    bool line_cut(int line) const { return cut_[line]; }
+    bool alarm(int line) const { return alarm_[line]; }
     void push(const Vec3& force_n) { push_ = force_n; dirty_ = true; }  // e.g. wind
     void tension_noise(double amplitude_n) { noise_ = amplitude_n; }
 

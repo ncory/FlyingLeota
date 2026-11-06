@@ -2,3 +2,5 @@ build/
 build-*/
 core/build/
 core/build-*/
+__pycache__/
+.pytest_cache/

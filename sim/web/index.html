@@ -1,0 +1,366 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Flying Leota simulator</title>
+<style>
+:root {
+  --bg: #0B0E13; --panel: #131821; --line: #232A35; --raised: #1A2230; --edge: #3A475A;
+  --ink: #E8ECF2; --muted: #9AA3B2; --blue: #6CB0FF; --blue-bg: #1D3A5E; --amber: #F5A524;
+  --red: #C62F35; --red-ink: #FFA8AB; --green: #3DD68C; --green-ink: #7BE3AE;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; background: var(--bg); color: var(--ink);
+  font: 14px/1.4 system-ui, -apple-system, "Segoe UI", sans-serif; }
+header { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 10px 14px;
+  background: #11151C; border-bottom: 1px solid var(--line); }
+#badge { padding: 8px 16px; border-radius: 10px; font-weight: 800; letter-spacing: .06em; font-size: 18px; }
+#msg { color: #C5CDD9; flex: 1 1 260px; min-width: 0; }
+.chip { display: inline-flex; align-items: center; gap: 7px; padding: 5px 11px; border-radius: 16px;
+  background: #18202B; border: 1px solid #2A3442; font-size: 13px; white-space: nowrap; }
+.dot { width: 9px; height: 9px; border-radius: 5px; background: var(--muted); }
+main { display: flex; height: calc(100% - 62px); min-height: 0; }
+#view { flex: 1 1 auto; position: relative; min-width: 0; }
+canvas { display: block; width: 100%; height: 100%; cursor: grab; touch-action: none; }
+#views { position: absolute; left: 10px; top: 10px; display: flex; gap: 6px; }
+#readout { position: absolute; left: 10px; bottom: 10px; font: 13px ui-monospace, monospace;
+  color: var(--muted); background: rgba(11,14,19,.8); padding: 6px 10px; border-radius: 8px; }
+aside { width: 400px; flex: 0 0 400px; overflow-y: auto; border-left: 1px solid var(--line); padding: 12px; }
+section { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 12px; margin-bottom: 12px; }
+h2 { margin: 0 0 8px; font-size: 15px; }
+h2 small { font-weight: 400; color: var(--muted); }
+button { font: inherit; font-weight: 600; color: var(--ink); background: var(--raised); border: 1px solid var(--edge);
+  border-radius: 9px; min-height: 40px; padding: 0 12px; cursor: pointer; }
+button:hover { border-color: var(--blue); }
+button:disabled { color: #8B95A5; cursor: default; }
+button.arm { background: var(--amber); color: #1B1200; border: 0; }
+button.stop { background: var(--red); border: 0; color: #fff; letter-spacing: .08em; }
+button.on { background: var(--blue-bg); border-color: var(--blue); }
+.row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-bottom: 8px; }
+.row > button { flex: 1 1 auto; }
+.grid3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
+label { color: var(--muted); }
+input[type=number] { width: 72px; font: inherit; color: var(--ink); background: #0E131A; border: 1px solid var(--edge);
+  border-radius: 7px; padding: 6px; }
+input[type=range] { flex: 1; accent-color: var(--blue); }
+select { font: inherit; color: var(--ink); background: #0E131A; border: 1px solid var(--edge); border-radius: 7px; padding: 6px; }
+.line { display: grid; grid-template-columns: 22px minmax(0, 1fr) 62px 104px; gap: 8px; align-items: center; margin: 5px 0; }
+.bar { height: 12px; background: #0E131A; border: 1px solid #2A3442; border-radius: 6px; position: relative; overflow: hidden; }
+.bar i { position: absolute; top: 0; bottom: 0; left: 0; background: var(--blue); }
+.bar b { position: absolute; top: -1px; bottom: -1px; width: 2px; background: #fff; opacity: .7; }
+.num { font-family: ui-monospace, monospace; text-align: right; }
+.muted { color: var(--muted); font-size: 12px; }
+.kv { display: grid; grid-template-columns: auto auto; gap: 3px 12px; }
+.kv span:nth-child(odd) { color: var(--muted); }
+#log { font: 12px ui-monospace, monospace; color: #C5CDD9; max-height: 220px; overflow-y: auto; white-space: pre-wrap; }
+dialog { background: #151B24; color: var(--ink); border: 1px solid var(--edge); border-radius: 14px; max-width: 460px; }
+dialog::backdrop { background: rgba(5,7,10,.75); }
+#toast { position: fixed; bottom: 16px; left: 50%; transform: translateX(-50%); background: #3A1A1C; color: #FFD3D5;
+  border: 1px solid var(--red); padding: 10px 16px; border-radius: 10px; display: none; max-width: 90%; }
+@media (max-width: 860px) {
+  main { flex-direction: column; height: auto; }
+  #view { height: 60vh; }
+  aside { width: auto; flex: none; border-left: 0; }
+}
+</style>
+</head>
+<body>
+<header>
+  <div id="badge">…</div>
+  <div id="msg">Connecting to the simulator…</div>
+  <span class="chip"><span class="dot" id="remoteDot"></span><span id="remote">Remote</span></span>
+  <span class="chip"><span class="dot" id="scDot"></span><span id="sc">Show Controller</span></span>
+  <span class="chip"><span class="dot" id="windDot"></span><span id="windChip">Wind</span></span>
+</header>
+<main>
+  <div id="view">
+    <canvas id="c" aria-label="The rig in 3-D. Drag to turn it, scroll to zoom."></canvas>
+    <div id="views">
+      <button data-view="front">From the audience</button>
+      <button data-view="top">Top</button>
+      <button data-view="side">Side</button>
+    </div>
+    <div id="readout"></div>
+  </div>
+  <aside>
+    <section>
+      <h2>The controller's screen <small>works in local or remote mode</small></h2>
+      <div class="row">
+        <button id="remoteBtn">Remote: on</button>
+        <button class="arm" id="armBtn">ARM…</button>
+        <button id="disarmBtn">Disarm</button>
+      </div>
+      <div class="row">
+        <button id="homeBtn">Home at dock</button>
+        <button id="parkBtn">Park at dock</button>
+        <button class="stop" id="stopBtn">STOP</button>
+      </div>
+      <div class="row">
+        <label>x <input type="number" id="gx" value="0" step="50"></label>
+        <label>y <input type="number" id="gy" value="0" step="50"></label>
+        <label>z <input type="number" id="gz" value="1200" step="50"></label>
+      </div>
+      <div class="row">
+        <label>in <input type="number" id="gs" value="3" step="0.5" min="0.5"> s</label>
+        <button id="goBtn">Go there</button>
+      </div>
+      <div class="muted" style="margin-bottom:6px">Jog: hold a button. Left/right is x, away/toward is y, up/down is z.</div>
+      <div class="grid3">
+        <button data-jog="2,1">Up</button><button data-jog="1,1">Away</button><button data-jog="2,-1">Down</button>
+        <button data-jog="0,-1">Left</button><button data-jog="1,-1">Toward</button><button data-jog="0,1">Right</button>
+      </div>
+    </section>
+
+    <section>
+      <h2>Lines <small>tension against 150 N · white mark: what the model expects</small></h2>
+      <div id="lines"></div>
+    </section>
+
+    <section>
+      <h2>Wind</h2>
+      <div class="kv" id="wind"></div>
+    </section>
+
+    <section>
+      <h2>Make things happen</h2>
+      <div class="row"><button id="estopBtn">Press E-stop</button><button id="snagBtn">Snag the ball</button></div>
+      <div class="row"><label style="min-width:84px">Wind <span id="windVal" class="num"></span></label>
+        <input type="range" id="windSlider" min="0" max="16" step="0.5"></div>
+      <div class="row"><label style="min-width:84px">Gustiness</label>
+        <input type="range" id="gustSlider" min="0" max="1" step="0.05"></div>
+      <div class="row">
+        <label><input type="checkbox" id="pushBox"> Wind pushes the ball</label>
+        <label><input type="checkbox" id="sensorBox"> Wind sensor connected</label>
+      </div>
+      <div class="row">
+        <select id="lineSel" aria-label="Line"><option value="0">Line A</option><option value="1">Line B</option>
+          <option value="2">Line C</option><option value="3">Line D</option></select>
+        <button id="cutBtn">Cut</button><button id="mendBtn">Mend</button><button id="alarmBtn">Drive alarm</button>
+      </div>
+      <div class="row"><button id="resetBtn">Reset the simulator</button></div>
+    </section>
+
+    <section>
+      <h2>Show Controller link</h2>
+      <div class="kv" id="link"></div>
+    </section>
+
+    <section>
+      <h2>Log</h2>
+      <div id="log"></div>
+    </section>
+  </aside>
+</main>
+
+<dialog id="armDialog">
+  <h2 style="font-size:20px">Arm the rig?</h2>
+  <p>The drives turn on and the brakes release. With remote on, Show Controller can move the ball as soon as this finishes.</p>
+  <p><label style="color:var(--ink)"><input type="checkbox" id="clearBox"> I've checked that nobody is under the ball and the lines are free.</label></p>
+  <div class="row"><button id="cancelArm">Cancel</button><button class="arm" id="confirmArm" disabled>ARM</button></div>
+</dialog>
+<div id="toast" role="status"></div>
+
+<script>
+'use strict';
+const $ = (s) => document.querySelector(s);
+let S = null;
+
+// ---- talking to the simulator ----
+async function poll() {
+  try {
+    const r = await fetch('/api/state');
+    S = await r.json();
+    render();
+  } catch (e) {
+    $('#msg').textContent = 'The simulator isn\'t answering.';
+  }
+  setTimeout(poll, 100);
+}
+async function act(o) {
+  try {
+    const r = await fetch('/api/action', { method: 'POST', body: JSON.stringify(o) });
+    const j = await r.json();
+    if (!j.ok && j.detail) toast(j.detail);
+  } catch (e) { toast('The simulator isn\'t answering.'); }
+}
+let toastTimer;
+function toast(t) {
+  const el = $('#toast'); el.textContent = t; el.style.display = 'block';
+  clearTimeout(toastTimer); toastTimer = setTimeout(() => el.style.display = 'none', 3500);
+}
+
+// ---- the panel ----
+const STATE_COLORS = {
+  'DISARMED': ['#2B3646', '#E8ECF2'], 'ARMING': ['#2B3646', '#E8ECF2'], 'ARMED': ['#F5A524', '#1B1200'],
+  'HOMING': ['#F5A524', '#1B1200'], 'MOVING': ['#F5A524', '#1B1200'], 'STOPPING': ['#F5A524', '#1B1200'],
+  'FAULT': ['#C62F35', '#fff'], 'E-STOP': ['#C62F35', '#fff'] };
+const LEVEL_DOT = { green: '#3DD68C', amber: '#F5A524', red: '#E5484D' };
+const fmt = (v, d = 0) => (v < 0 ? '−' : '') + Math.abs(v).toFixed(d);
+
+function render() {
+  const b = $('#badge'), [bg, fg] = STATE_COLORS[S.state] || ['#2B3646', '#fff'];
+  b.textContent = S.state + (S.parking ? ' · PARKING' : ''); b.style.background = bg; b.style.color = fg;
+  $('#msg').textContent = S.message + (S.faults.length ? '  (' + S.faults.join(', ') + ')' : '');
+  $('#remote').textContent = S.remote ? 'Remote on' : 'Local only';
+  $('#remoteDot').style.background = S.remote ? '#6CB0FF' : '#8B95A5';
+  const sc = S.show_controller, linked = sc.address && sc.heard >= 0 && sc.heard < 1.5;
+  $('#sc').textContent = linked ? 'Show Controller ' + sc.address : 'No Show Controller';
+  $('#scDot').style.background = linked ? '#3DD68C' : '#8B95A5';
+  $('#windChip').textContent = 'Wind ' + S.wind.level;
+  $('#windDot').style.background = LEVEL_DOT[S.wind.level];
+
+  $('#remoteBtn').textContent = S.remote ? 'Remote: on' : 'Remote: off';
+  $('#remoteBtn').classList.toggle('on', S.remote);
+  $('#estopBtn').textContent = S.estop ? 'Release E-stop and reset' : 'Press E-stop';
+  $('#estopBtn').classList.toggle('stop', !S.estop);
+  $('#snagBtn').textContent = S.snag > 0 ? 'Free the snag' : 'Snag the ball';
+  document.querySelectorAll('[data-jog="1,1"],[data-jog="1,-1"]').forEach(el => el.disabled = S.config.two_axis);
+
+  const max = S.config.tension_max;
+  $('#lines').innerHTML = S.lines.map(l => {
+    const col = l.cut ? '#5B6B82' : l.tension < S.config.tension_min ? '#F5A524' : l.tension > max ? '#E5484D' : '#6CB0FF';
+    return `<div class="line"><strong>${l.name}</strong>
+      <div class="bar"><i style="width:${Math.min(100, l.tension / max * 100)}%;background:${col}"></i>
+        <b style="left:${Math.min(100, l.expected / max * 100)}%"></b></div>
+      <span class="num">${l.tension.toFixed(1)} N</span>
+      <span class="muted">${l.cut ? 'CUT' : l.alarm ? 'ALARM' : 'trim ' + fmt(l.trim, 2) + ' · ±' + l.swing.toFixed(1)}</span></div>`;
+  }).join('');
+
+  const w = S.wind;
+  $('#wind').innerHTML = [['Now', w.speed.toFixed(1) + ' m/s'], ['Gust, 10 min', w.gust.toFixed(1) + ' m/s'],
+    ['Average, 2 min', w.average.toFixed(1) + ' m/s'], ['Level', w.level + (w.calm_left > 0 ? ' · arming in ' + Math.ceil(w.calm_left / 60) + ' min' : '')],
+    ['Sensor', w.sensor ? 'reading' : 'unplugged']].map(([k, v]) => `<span>${k}</span><span>${v}</span>`).join('');
+  if (document.activeElement !== $('#windSlider')) $('#windSlider').value = w.base;
+  if (document.activeElement !== $('#gustSlider')) $('#gustSlider').value = w.gusty;
+  $('#windVal').textContent = (+$('#windSlider').value).toFixed(1);
+  $('#pushBox').checked = w.push;
+  $('#sensorBox').checked = w.sensor;
+
+  $('#link').innerHTML = [['SCMP', 'UDP port ' + sc.scmp_port], ['Address', sc.address || 'none yet'],
+    ['Last heard', sc.heard < 0 ? 'never' : sc.heard.toFixed(1) + ' s ago'], ['Commands', sc.commands]]
+    .map(([k, v]) => `<span>${k}</span><span>${v}</span>`).join('');
+  $('#log').textContent = S.log.join('\n');
+  const p = S.position, q = S.ball;
+  $('#readout').textContent = `commanded  x ${fmt(p.x)}  y ${fmt(p.y)}  z ${fmt(p.z)} mm\n` +
+    `ball         x ${fmt(q.x, 1)}  y ${fmt(q.y, 1)}  z ${fmt(q.z, 1)} mm${S.resting ? '  (on the dock)' : ''}`;
+  $('#readout').style.whiteSpace = 'pre';
+}
+
+// ---- buttons ----
+$('#remoteBtn').onclick = () => act({ do: 'remote', on: !S.remote });
+$('#armBtn').onclick = () => { $('#clearBox').checked = false; $('#confirmArm').disabled = true; $('#armDialog').showModal(); };
+$('#clearBox').onchange = (e) => $('#confirmArm').disabled = !e.target.checked;
+$('#cancelArm').onclick = () => $('#armDialog').close();
+$('#confirmArm').onclick = () => { $('#armDialog').close(); act({ do: 'arm' }); };
+$('#disarmBtn').onclick = () => act({ do: 'disarm' });
+$('#homeBtn').onclick = () => act({ do: 'home' });
+$('#parkBtn').onclick = () => act({ do: 'park' });
+$('#stopBtn').onclick = () => act({ do: 'stop' });
+$('#goBtn').onclick = () => act({ do: 'goto', x: +$('#gx').value, y: +$('#gy').value, z: +$('#gz').value, duration: +$('#gs').value });
+$('#estopBtn').onclick = () => act({ do: 'estop', on: !S.estop });
+$('#snagBtn').onclick = () => act({ do: 'snag', force: S.snag > 0 ? 0 : 60 });
+$('#windSlider').oninput = (e) => act({ do: 'wind', speed: +e.target.value });
+$('#gustSlider').oninput = (e) => act({ do: 'wind', gusty: +e.target.value });
+$('#pushBox').onchange = (e) => act({ do: 'wind', push: e.target.checked });
+$('#sensorBox').onchange = (e) => act({ do: 'wind', sensor: e.target.checked });
+$('#cutBtn').onclick = () => act({ do: 'cut', line: +$('#lineSel').value });
+$('#mendBtn').onclick = () => act({ do: 'mend', line: +$('#lineSel').value });
+$('#alarmBtn').onclick = () => { const i = +$('#lineSel').value; act({ do: 'alarm', line: i, on: !S.lines[i].alarm }); };
+$('#resetBtn').onclick = () => act({ do: 'reset' });
+document.querySelectorAll('[data-jog]').forEach(el => {
+  const [axis, dir] = el.dataset.jog.split(',').map(Number);
+  let timer = null;
+  const start = (e) => { e.preventDefault(); if (timer) return;
+    const send = () => act({ do: 'jog', axis, velocity: dir * 100 }); send(); timer = setInterval(send, 100); };
+  const end = () => { clearInterval(timer); timer = null; };
+  el.addEventListener('pointerdown', start);
+  ['pointerup', 'pointerleave', 'pointercancel'].forEach(t => el.addEventListener(t, end));
+});
+
+// ---- the 3-D view ----
+const canvas = $('#c'), ctx = canvas.getContext('2d');
+const cam = { yaw: -0.35, pitch: 0.22, dist: 5200, target: [0, 0, 1150] };
+const VIEWS = { front: [0, 0.12], top: [0, 1.5], side: [Math.PI / 2, 0.12] };
+document.querySelectorAll('[data-view]').forEach(el => el.onclick = () => {
+  [cam.yaw, cam.pitch] = VIEWS[el.dataset.view]; cam.dist = 5200; });
+let drag = null;
+canvas.addEventListener('pointerdown', (e) => { drag = [e.clientX, e.clientY, cam.yaw, cam.pitch]; canvas.setPointerCapture(e.pointerId); });
+canvas.addEventListener('pointermove', (e) => { if (!drag) return;
+  cam.yaw = drag[2] - (e.clientX - drag[0]) * 0.008;
+  cam.pitch = Math.max(-0.2, Math.min(1.55, drag[3] + (e.clientY - drag[1]) * 0.008)); });
+canvas.addEventListener('pointerup', () => drag = null);
+canvas.addEventListener('wheel', (e) => { e.preventDefault(); cam.dist = Math.max(2000, Math.min(12000, cam.dist * (1 + e.deltaY * 0.001))); }, { passive: false });
+
+function basis() {
+  const cp = Math.cos(cam.pitch), t = cam.target;
+  const eye = [t[0] + cam.dist * Math.sin(cam.yaw) * cp, t[1] - cam.dist * Math.cos(cam.yaw) * cp, t[2] + cam.dist * Math.sin(cam.pitch)];
+  const f = norm(sub(t, eye)), r = norm(cross(f, [0, 0, 1])), u = cross(r, f);
+  return { eye, f, r, u };
+}
+const sub = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
+const dot = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+const cross = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
+const norm = (a) => { const l = Math.hypot(a[0], a[1], a[2]) || 1; return [a[0] / l, a[1] / l, a[2] / l]; };
+const P = (o) => [o.x, o.y, o.z];
+
+function draw() {
+  const dpr = window.devicePixelRatio || 1, w = canvas.clientWidth, h = canvas.clientHeight;
+  if (canvas.width !== w * dpr || canvas.height !== h * dpr) { canvas.width = w * dpr; canvas.height = h * dpr; }
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.fillStyle = '#0B0E13'; ctx.fillRect(0, 0, w, h);
+  requestAnimationFrame(draw);
+  if (!S) return;
+  const B = basis(), focal = Math.min(w, h) * 1.25;
+  const proj = (p) => { const d = sub(p, B.eye), z = dot(d, B.f);
+    return [w / 2 + focal * dot(d, B.r) / z, h / 2 - focal * dot(d, B.u) / z, z]; };
+  const seg = (a, b, color, width = 1, dash = []) => { const A = proj(a), C = proj(b);
+    ctx.strokeStyle = color; ctx.lineWidth = width; ctx.setLineDash(dash);
+    ctx.beginPath(); ctx.moveTo(A[0], A[1]); ctx.lineTo(C[0], C[1]); ctx.stroke(); ctx.setLineDash([]); };
+  const box = (lo, hi, color, dash = [], width = 1) => {
+    const c = [[lo.x, lo.y], [hi.x, lo.y], [hi.x, hi.y], [lo.x, hi.y]];
+    for (let i = 0; i < 4; i++) { const a = c[i], b = c[(i + 1) % 4];
+      seg([a[0], a[1], lo.z], [b[0], b[1], lo.z], color, width, dash);
+      seg([a[0], a[1], hi.z], [b[0], b[1], hi.z], color, width, dash);
+      seg([a[0], a[1], lo.z], [a[0], a[1], hi.z], color, width, dash); } };
+
+  // The deck, the audience, the table and pedestal, the workspace.
+  for (let v = -1200; v <= 1200; v += 400) {
+    seg([v, -1200, 0], [v, 1200, 0], '#1A2029'); seg([-1200, v, 0], [1200, v, 0], '#1A2029'); }
+  const aud = proj([0, -1450, 0]);
+  ctx.fillStyle = '#5B6B82'; ctx.font = '12px system-ui'; ctx.textAlign = 'center';
+  ctx.fillText('AUDIENCE', aud[0], aud[1]);
+  const cfg = S.config;
+  box(cfg.table.lo, cfg.table.hi, '#3A4556');
+  seg([cfg.dock.x, cfg.dock.y, cfg.table.hi.z], [cfg.dock.x, cfg.dock.y, cfg.dock.z - cfg.ball_radius], '#5B6B82', 4);
+  box(cfg.workspace.lo, cfg.workspace.hi, '#2E3A4C', [5, 5]);
+
+  // Posts, roof edges and pulleys.
+  const A = S.lines.map(l => P(l.anchor)), order = [0, 1, 3, 2];
+  A.forEach((a, i) => { seg([a[0], a[1], 0], a, '#5B6B82', 3);
+    const s = proj(a); ctx.fillStyle = '#9AA3B2'; ctx.fillText(S.lines[i].name, s[0], s[1] - 10); });
+  order.forEach((k, i) => seg(A[k], A[order[(i + 1) % 4]], '#3A4556', 2));
+
+  // The lines, coloured by tension.
+  S.lines.forEach((l, i) => {
+    const col = l.cut ? '#5B6B82' : l.real < cfg.tension_min ? '#F5A524' : l.real > cfg.tension_max ? '#E5484D' : '#6CB0FF';
+    if (!l.cut) seg(A[i], P(l.attach), col, 1.6);
+    else seg(A[i], [A[i][0], A[i][1], A[i][2] - 500], col, 1.2, [4, 4]);
+  });
+
+  // The ball, and a cross where the controller thinks it is.
+  const c = proj(P(S.ball)), rad = focal * cfg.ball_radius / c[2];
+  const g = ctx.createRadialGradient(c[0] - rad * .35, c[1] - rad * .35, rad * .1, c[0], c[1], rad);
+  g.addColorStop(0, 'rgba(156,196,255,.55)'); g.addColorStop(1, 'rgba(29,58,94,.35)');
+  ctx.fillStyle = g; ctx.strokeStyle = '#9CC4FF'; ctx.lineWidth = 1.5;
+  ctx.beginPath(); ctx.arc(c[0], c[1], rad, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+  const m = proj(P(S.position));
+  ctx.strokeStyle = '#F5A524'; ctx.lineWidth = 1.5;
+  ctx.beginPath(); ctx.moveTo(m[0] - 6, m[1]); ctx.lineTo(m[0] + 6, m[1]); ctx.moveTo(m[0], m[1] - 6); ctx.lineTo(m[0], m[1] + 6); ctx.stroke();
+  if (S.fell) { ctx.fillStyle = '#FFA8AB'; ctx.fillText('THE BALL FELL', c[0], c[1] - rad - 8); }
+}
+requestAnimationFrame(draw);
+poll();
+</script>
+</body>
+</html>

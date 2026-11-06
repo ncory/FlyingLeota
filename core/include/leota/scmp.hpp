@@ -29,6 +29,9 @@ public:
     // second otherwise, and at once when the state, faults, remote or wind level change.
     bool status_due(double now);
     void status_soon() { force_ = true; }  // e.g. after a command that changes things
+    // The type ("t") of the last message handled, so a transport can tell where to send
+    // status: to whoever last sent a hello or a heartbeat.
+    const std::string& last_type() const { return last_type_; }
 
 private:
     struct Answer { bool used = false; long long seq = 0; std::string ack; };
@@ -41,6 +44,7 @@ private:
     double last_status_ = -1e9;
     std::string last_sig_;
     bool force_ = false;
+    std::string last_type_;
 };
 
 }  // namespace leota

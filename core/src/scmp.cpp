@@ -273,6 +273,7 @@ std::string ScmpServer::handle(std::string_view message, double now) {
     JsonDocument in;
     std::string out;
     const DeserializationError e = deserializeJson(in, message.data(), message.size());
+    last_type_.clear();
     if (e || !in.is<JsonObject>()) {
         JsonDocument ack;
         ack["t"] = "ack";
@@ -285,6 +286,7 @@ std::string ScmpServer::handle(std::string_view message, double now) {
     JsonObjectConst msg = in.as<JsonObjectConst>();
     const char* t = msg["t"].as<const char*>();
     const std::string_view type = t ? t : "";
+    last_type_ = std::string(type);
     if (type == "heartbeat") return "";
     const bool int_seq = msg["seq"].is<long long>() && !msg["seq"].is<bool>();
     const long long seq = int_seq ? msg["seq"].as<long long>() : 0;
