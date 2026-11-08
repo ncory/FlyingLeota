@@ -403,3 +403,19 @@ TEST_CASE("the line test, by taps: zero, a weight, the rise, then use and save")
     CHECK(got.load_scale == doctest::Approx(truth.load_scale).epsilon(0.002));
     CHECK(got.drum == doctest::Approx(truth.drum).epsilon(0.003));
 }
+
+TEST_CASE("touch handlers run inside the host's lock, as the firmware needs") {
+    Panel p;
+    int depth = 0, locks = 0, unlocks = 0;
+    bool armed_inside = false;
+    p.ui->set_lock([&] { ++depth; ++locks; }, [&] { --depth; ++unlocks; });
+    p.tap("tab.controls");
+    p.tap("controls.arm");
+    p.tap("dialog.check");
+    p.tap("dialog.arm");
+    armed_inside = p.sim.rig.armed() || p.sim.rig.state() == RigState::Arming;
+    CHECK(armed_inside);
+    CHECK(locks > 0);
+    CHECK(locks == unlocks);
+    CHECK(depth == 0);
+}

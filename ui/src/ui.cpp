@@ -322,7 +322,7 @@ struct Ui::Impl {
     int group = 0;
     std::vector<lv_obj_t*> group_buttons;
     lv_obj_t *set_title = nullptr, *set_status = nullptr, *set_save = nullptr, *set_undo = nullptr, *set_rows = nullptr;
-    std::vector<std::unique_ptr<std::function<void()>>> row_actions;
+    std::vector<std::unique_ptr<std::pair<Impl*, std::function<void()>>>> row_actions;
 
     // The number pad
     enum class EditMode { Field, PinNew, PinAgain };
@@ -411,11 +411,20 @@ struct Ui::Impl {
     void name(const std::string& n, lv_obj_t* o) { named[n] = o; }
 
     using Action = std::function<void()>;
-    std::vector<std::unique_ptr<Action>> actions;
+    // Every touch handler runs under the host's lock (see Ui::set_lock): on the controller,
+    // LVGL calls them from its own task while the motion task runs the rig.
+    std::function<void()> lock_fn, unlock_fn;
+    static void dispatch(lv_event_t* e) {
+        auto* a = static_cast<std::pair<Impl*, Action>*>(lv_event_get_user_data(e));
+        Impl* self = a->first;
+        if (self->lock_fn) self->lock_fn();
+        a->second();
+        if (self->unlock_fn) self->unlock_fn();
+    }
+    std::vector<std::unique_ptr<std::pair<Impl*, Action>>> actions;
     void on(lv_obj_t* o, lv_event_code_t code, Action a) {
-        actions.push_back(std::make_unique<Action>(std::move(a)));
-        lv_obj_add_event_cb(o, [](lv_event_t* e) { (*static_cast<Action*>(lv_event_get_user_data(e)))(); }, code,
-                            actions.back().get());
+        actions.push_back(std::make_unique<std::pair<Impl*, Action>>(this, std::move(a)));
+        lv_obj_add_event_cb(o, dispatch, code, actions.back().get());
     }
     void on_click(lv_obj_t* o, Action a) { on(o, LV_EVENT_CLICKED, std::move(a)); }
 
@@ -1274,9 +1283,8 @@ struct Ui::Impl {
     }
 
     void click_row(lv_obj_t* o, Action a) {
-        row_actions.push_back(std::make_unique<Action>(std::move(a)));
-        lv_obj_add_event_cb(o, [](lv_event_t* e) { (*static_cast<Action*>(lv_event_get_user_data(e)))(); },
-                            LV_EVENT_CLICKED, row_actions.back().get());
+        row_actions.push_back(std::make_unique<std::pair<Impl*, Action>>(this, std::move(a)));
+        lv_obj_add_event_cb(o, dispatch, LV_EVENT_CLICKED, row_actions.back().get());
     }
 
     void tap_field(const Field& f) {
@@ -2119,6 +2127,11 @@ Ui::~Ui() = default;
 void Ui::update(double now, const UiLink& link, const std::string& clock) { d_->update(now, link, clock); }
 
 void Ui::log(LogKind kind, const std::string& text) { d_->add_log(kind, text); }
+
+void Ui::set_lock(std::function<void()> lock, std::function<void()> unlock) {
+    d_->lock_fn = std::move(lock);
+    d_->unlock_fn = std::move(unlock);
+}
 
 lv_obj_t* Ui::find(const std::string& name) const {
     auto it = d_->named.find(name);

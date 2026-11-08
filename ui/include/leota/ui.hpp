@@ -6,6 +6,7 @@
 // The layout follows the mockup linked from docs/plan.md, section 5.6.
 #pragma once
 
+#include <functional>
 #include <memory>
 #include <string>
 
@@ -40,6 +41,9 @@ public:
     void update(double now, const UiLink& link, const std::string& clock);
     // Adds a line to the Log screen (the UI logs the rig's own messages itself).
     void log(LogKind kind, const std::string& text);
+    // Where other tasks share the rig (the firmware), touch handlers call `lock` before
+    // they touch the rig and `unlock` after. The host locks around update() itself.
+    void set_lock(std::function<void()> lock, std::function<void()> unlock);
 
     // For tests and the simulator: a widget by name, such as "tab.controls" or
     // "controls.arm" (see ui.cpp), or nullptr.

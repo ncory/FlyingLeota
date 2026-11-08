@@ -1,0 +1,5 @@
+dependencies:
+  idf: ">=5.5"
+  # The board's display (EK79007 over MIPI-DSI), touch (GT911), backlight and LVGL port.
+  espressif/esp32_p4_function_ev_board: "~5.2.3"
+  lvgl/lvgl: "~9.2.2"

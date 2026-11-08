@@ -335,6 +335,7 @@ void CalibrationRun::update(Rig& rig, double now) {
     }
     if (phase_ == Phase::Parking) {
         if (!rig.armed()) {
+            fit_ = fit_calibration(cfg_, home_t_, samples_);
             phase_ = Phase::Done;
             message_ = "Done. The ball is back on the dock.";
         }
@@ -384,9 +385,11 @@ void CalibrationRun::update(Rig& rig, double now) {
             fly(rig, now);
             return;
         }
-        fit_ = fit_calibration(cfg_, home_t_, samples_);
+        // Park first, fit after: on the controller the fit takes a moment, which is better
+        // spent with the ball on its dock than hanging in the air.
         Result r = rig.park(now);
         if (!r) {
+            fit_ = fit_calibration(cfg_, home_t_, samples_);
             phase_ = Phase::Done;
             message_ = "Done, but the ball couldn't park: " + r.detail;
             return;

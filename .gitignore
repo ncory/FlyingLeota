@@ -4,3 +4,8 @@ core/build/
 core/build-*/
 __pycache__/
 .pytest_cache/
+firmware/build/
+firmware/managed_components/
+firmware/sdkconfig
+firmware/sdkconfig.old
+firmware/dependencies.lock
