@@ -54,9 +54,10 @@ void BoardIo::init(bool real_drives) {
     input(estop_pin_);
     input(key_pin_);
     for (int p : alarm_pin_) input(p);
-    if (!estop_fitted())
-        ESP_LOGW(TAG, real_drives ? "No E-stop input set: the chain reads open, and the rig won't arm."
-                                  : "No E-stop input set (fine for the simulated rig).");
+    if (!estop_fitted() && real_drives)
+        ESP_LOGW(TAG, "No E-stop input set: the chain reads open, and the rig won't arm.");
+    else if (!estop_fitted())
+        ESP_LOGW(TAG, "No E-stop input set (fine for the simulated rig).");
     if (enable_pin_ >= 0 && pump_pin_ < 0)
         ESP_LOGW(TAG, "Drive enable without a charge pump: a hung controller won't drop the drives.");
 }

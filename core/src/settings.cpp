@@ -245,7 +245,9 @@ bool rig_part_differs(const Settings& a, const Settings& b) {
 
 std::string address_text(std::uint32_t a) {
     char buf[20];
-    std::snprintf(buf, sizeof buf, "%u.%u.%u.%u", (a >> 24) & 255u, (a >> 16) & 255u, (a >> 8) & 255u, a & 255u);
+    std::snprintf(buf, sizeof buf, "%u.%u.%u.%u", static_cast<unsigned>((a >> 24) & 255u),
+                  static_cast<unsigned>((a >> 16) & 255u), static_cast<unsigned>((a >> 8) & 255u),
+                  static_cast<unsigned>(a & 255u));
     return buf;
 }
 

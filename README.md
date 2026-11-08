@@ -11,7 +11,7 @@ drives them, and Show Controller tells it what to do over SCMP.
 | `core/` | The motion core: the controller's logic in plain C++, with tests. See `core/README.md`. |
 | `sim/` | The PC simulator: the core on a simulated rig, speaking SCMP, with a 3-D viewer. See `sim/README.md`. |
 | `ui/` | The touchscreen, in LVGL: the same screens on the controller and in the simulator. See `ui/README.md`. |
-| `firmware/` | The controller's firmware for the ESP32-P4 board, in ESP-IDF: the core, the touchscreen and settings on real hardware, with a bench console. Written, not yet compiled. See `firmware/README.md`. |
+| `firmware/` | The controller's firmware for the ESP32-P4 board, in ESP-IDF: the core, the touchscreen and settings on real hardware, with a bench console. Compiles; not yet run on a board. See `firmware/README.md`. |
 
 Build everything that runs on a PC with `cmake -S . -B build -G Ninja && cmake --build build`.
 The core's tests are `build/core/leota_core_tests`, the touchscreen's

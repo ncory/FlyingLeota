@@ -69,12 +69,14 @@ void task(void*) {
     }
 }
 
+#ifdef CONFIG_LEOTA_DRIVES_SIM
 void calm_task(void*) {
     for (;;) {
         give(1.5);
         vTaskDelay(pdMS_TO_TICKS(500));
     }
 }
+#endif
 
 }  // namespace
 

@@ -797,9 +797,9 @@ struct Ui::Impl {
         lv_obj_set_style_border_width(dialog_check, 1, 0);
         lv_obj_set_style_border_color(dialog_check, hex(kEdge), 0);
         lv_obj_set_style_border_color(dialog_check, hex(kAmber), LV_STATE_CHECKED);
-        lv_obj_set_style_bg_color(dialog_check, hex(kAmber), LV_PART_INDICATOR | LV_STATE_CHECKED);
+        lv_obj_set_style_bg_color(dialog_check, hex(kAmber), static_cast<lv_style_selector_t>(LV_PART_INDICATOR) | LV_STATE_CHECKED);
         lv_obj_set_style_border_color(dialog_check, hex(kAmber), LV_PART_INDICATOR);
-        lv_obj_set_style_text_color(dialog_check, hex(kAmberInk), LV_PART_INDICATOR | LV_STATE_CHECKED);
+        lv_obj_set_style_text_color(dialog_check, hex(kAmberInk), static_cast<lv_style_selector_t>(LV_PART_INDICATOR) | LV_STATE_CHECKED);
         name("dialog.check", dialog_check);
         on(dialog_check, LV_EVENT_VALUE_CHANGED, [this] { enable(dialog_arm, lv_obj_has_state(dialog_check, LV_STATE_CHECKED)); });
         lv_obj_t* cancel = button(c, 24, 366, 268, 60, "Cancel");

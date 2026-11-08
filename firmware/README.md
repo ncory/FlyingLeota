@@ -5,10 +5,9 @@ The Flying Leota controller on Espressif's ESP32-P4 Function EV Board, with its 
 settings are the same code the PC simulator runs; this folder adds the hardware around
 them.
 
-**Status: written, not yet compiled or run.** It is written against ESP-IDF 5.5.6's own
-headers and the board support package's, but it hasn't been through the compiler, and
-nothing here has run on a board. Expect a round of build fixes, then Phase 1 on the bench
-(docs/plan.md, section 8).
+**Status: compiles, not yet run.** It builds without warnings on ESP-IDF 5.5.6 for all
+three kinds of drive (a 1.4 MB app; a fifth of the internal RAM). Nothing here has run on
+a board yet: that is Phase 1 on the bench (docs/plan.md, section 8).
 
 ## Build
 
@@ -21,6 +20,8 @@ idf.py build flash monitor
 ```
 
 The component manager fetches the board support package and LVGL 9.2 the first time.
+LVGL stays at 9.2.2, the simulator's version; Espressif's LVGL port is held at 2.7.2,
+because 2.8 and later need LVGL 9.3.
 
 ## What runs
 
@@ -99,6 +100,6 @@ its step pin: `steps`, while tapping the screen and with Show Controller sending
 
 ## Not yet
 
-- Compiled, and run on a board.
+- Run on a board.
 - The RMT step timing on the P4 is the least proven part (docs/plan.md, Phase 1).
 - Over-the-air updates, and an event log in flash.

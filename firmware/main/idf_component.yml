@@ -3,3 +3,5 @@ dependencies:
   # The board's display (EK79007 over MIPI-DSI), touch (GT911), backlight and LVGL port.
   espressif/esp32_p4_function_ev_board: "~5.2.3"
   lvgl/lvgl: "~9.2.2"
+  # 2.8 and later use a colour format that LVGL only has from 9.3 on.
+  espressif/esp_lvgl_port: "~2.7.2"
