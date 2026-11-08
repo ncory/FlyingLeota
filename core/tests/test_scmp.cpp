@@ -54,6 +54,8 @@ TEST_CASE("hello describes the rig as three coupled axes") {
     CHECK(info["scmp"] == 1);
     CHECK(info["name"] == "Flying Leota");
     CHECK(info["coupled"] == true);
+    CHECK(info["tension_min"].as<double>() == 5.0);
+    CHECK(info["tension_max"].as<double>() == 150.0);
     CHECK(info["heartbeat_timeout"] == 0.5);
     REQUIRE(info["axes"].size() == 3);
     CHECK(info["axes"][2]["axis"] == "z");

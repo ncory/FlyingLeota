@@ -88,6 +88,7 @@ async def test_show_controllers_scmp_client_flies_the_ball(sim):
     info = await c.connect()
     try:
         assert info["name"] == "Flying Leota" and info["coupled"] is True
+        assert info["tension_min"] == 5 and info["tension_max"] == 150
         assert [a["axis"] for a in info["axes"]] == ["x", "y", "z"]
         assert all(a["units"] == "mm" and a["needs_homing"] for a in info["axes"])
 
@@ -176,5 +177,73 @@ async def test_show_controller_runs_a_show_on_the_simulator(sim, tmp_path):
 
         await sc.bus.run("motion.disarm", {"device": "leota"})
         await wait(lambda: sim.state()["state"] == "DISARMED", 4)
+    finally:
+        await sc.stop()
+
+
+async def test_show_controller_shows_what_the_controller_reports(sim, tmp_path):
+    """SCMP's optional fields, from leota-sim to Show Controller's motion status, events,
+    show log and skipped moves (docs/scmp.md, "Optional fields")."""
+    from conftest import base_project
+    from showcontroller.app import ShowController
+
+    p = base_project()
+    p["devices"] = [{"id": "leota", "name": "Leota rig", "type": "scmp",
+                     "config": {"host": "127.0.0.1", "port": sim.port}}]
+    for axis in ("x", "y", "z"):
+        p["outputs"].append({"id": f"leota-{axis}", "unit": "leader", "type": "motion",
+                             "config": {"device": "leota", "axis": axis,
+                                        "positions": {"up": 1200, "centre": 0}}})
+    p["timelines"][1]["items"] = [
+        {"id": "rise", "type": "move", "output": "leader/leota-z", "offset": 0.2,
+         "params": {"position": "up", "duration": 2.0}}]
+    p["timelines"][1]["duration"] = 3
+
+    sc = ShowController(tmp_path, renderer="inprocess", gpio="sim")
+    events: list = []
+    await sc.start()
+    sc.bus.subscribe(lambda e: events.append(e) if e.type.startswith("motion.") else None)
+    try:
+        sc.replace_project(p)
+        dev = lambda: sc.modules_ctx.devices["leota"]  # noqa: E731
+        await wait(lambda: dev().connected and dev().status()["lines"] is not None, 5)
+        st = dev().status()
+        assert st["coupled"] is True and st["remote"] is True
+        assert st["wind"]["level"] == "green"
+        assert [l["line"] for l in st["lines"]] == ["A", "B", "C", "D"]
+        assert st["message"].startswith("Started.")
+
+        await sc.bus.run("motion.arm", {"device": "leota"})
+        await wait(lambda: sim.state()["state"] == "ARMED", 3)
+        await sc.bus.run("motion.home", {"output": "leader/leota-z"})
+        await wait(lambda: sim.state()["homed"] and sim.state()["state"] == "ARMED", 40)
+        await wait(lambda: all(l["tension"] > 5 for l in dev().status()["lines"]), 3)
+
+        # The touchscreen takes over: Show Controller says so, and a move is skipped.
+        sim.action(do="remote", on=False)
+        await wait(lambda: dev().status()["remote"] is False, 3)
+        await wait(lambda: any(e.type == "motion.remote" for e in events), 2)
+        sc.engine.request_start("show")
+        await wait(lambda: any(e.type == "motion.skipped" for e in events), 5)
+        skipped = next(e for e in events if e.type == "motion.skipped")
+        assert skipped.data["error"] == "local" and "Remote control is off" in skipped.data["reason"]
+        assert not any(e.type == "item.failed" for e in sc.bus._history)
+        sim.action(do="remote", on=True)
+        await wait(lambda: dev().status()["remote"] is True, 3)
+
+        # The wind sensor goes quiet: Red, with the hold counting down.
+        sim.action(do="wind", sensor=False)
+        await wait(lambda: (dev().status()["wind"] or {}).get("level") == "red", 10)
+        wind = dev().status()["wind"]
+        assert wind["calm_left"] > 0
+        red = next(e for e in events if e.type == "motion.wind")
+        assert red.data["level"] == "red" and red.data["name"] == "Leota rig"
+        await wait(lambda: any(e.type == "motion.message" and "wind sensor" in e.data["message"]
+                               for e in events), 3)
+
+        entries = (tmp_path / "logs" / "show.jsonl").read_text()
+        assert "under local control" in entries
+        assert "was skipped: Remote control is off at the controller" in entries
+        assert "the wind is Red" in entries
     finally:
         await sc.stop()

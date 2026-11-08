@@ -223,6 +223,9 @@ bool dispatch(std::string_view t, Req& q, const std::string& firmware) {
         info["name"] = rig.config().name;
         info["heartbeat_timeout"] = rig.config().heartbeat_timeout;
         info["coupled"] = true;
+        // The lines' limits, so a client can draw each tension as a bar (Optional fields, Lines).
+        info["tension_min"] = rig.config().tension_min;  // below: slack_line
+        info["tension_max"] = rig.config().tension_max;  // above: overload
         JsonArray axes = info["axes"].to<JsonArray>();
         for (int i = 0; i < kAxes; ++i)
             if (rig.axis_present(i)) axis_info(rig, i, axes.add<JsonObject>());
