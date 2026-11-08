@@ -19,6 +19,14 @@ idf.py menuconfig        # Flying Leota: drives, pins
 idf.py build flash monitor
 ```
 
+In the "Flying Leota" cloud environment, ESP-IDF is already installed beside the
+checkouts, in `esp/`. Start each shell with:
+
+```bash
+export IDF_TOOLS_PATH=$PWD/../../esp/tools   # from this folder
+. ../../esp/esp-idf/export.sh
+```
+
 The component manager fetches the board support package and LVGL 9.2 the first time.
 LVGL stays at 9.2.2, the simulator's version; Espressif's LVGL port is held at 2.7.2,
 because 2.8 and later need LVGL 9.3.
