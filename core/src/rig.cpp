@@ -46,7 +46,7 @@ Rig::Rig(const RigConfig& cfg, Hardware& hw) : cfg_(cfg), hw_(hw), wind_(cfg.win
     for (int a = 0; a < kAxes; ++a) axes_[a].reset(component(cfg_.dock, a), window_);
     hw_.set_brakes_released(false);
     hw_.set_enabled(false);
-    fb_ = hw_.feedback();
+    read_feedback();
     hold_drives();
     message_ = "Started. Arm, then home at the dock before flying.";
 }
@@ -60,6 +60,7 @@ Vec3 Rig::velocity() const {
 }
 
 bool Rig::busy() const {
+    if (service_line_ >= 0) return true;
     for (const AxisMotion& a : axes_)
         if (!a.settled()) return true;
     return false;
@@ -107,6 +108,22 @@ Box Rig::allowed_box() const {
         if (cfg_.two_axis) b.lo.y = b.hi.y = cfg_.fixed_y;
     }
     return b;
+}
+
+void Rig::read_feedback() {
+    raw_ = hw_.feedback();
+    fb_ = raw_;
+    for (int i = 0; i < kLines; ++i) {
+        const LineSensors& c = cfg_.sensors[i];
+        fb_[i].position = raw_[i].position * c.drum;
+        fb_[i].tension = (raw_[i].tension - c.load_zero) * c.load_scale;
+    }
+}
+
+void Rig::send_commands() {
+    std::array<double, kLines> out{};
+    for (int i = 0; i < kLines; ++i) out[i] = cmd_[i] / cfg_.sensors[i].drum;
+    hw_.command(out);
 }
 
 void Rig::hold_drives() {
@@ -257,6 +274,8 @@ Result Rig::stop(std::optional<double> decel, double) {
     }
     if (park_ != Park::None) message_ = "Parking stopped.";
     park_ = Park::None;
+    if (service_line_ >= 0) message_ = "Line stopped. Home again before flying.";
+    service_line_ = -1;
     for (int a = 0; a < kAxes; ++a) axes_[a].stop(decel ? *decel : cfg_.axes[a].max_accel);
     if (state_ != RigState::Arming) state_ = RigState::Stopping;
     return {};
@@ -288,6 +307,44 @@ Result Rig::clear_faults(double) {
     return {};
 }
 
+Result Rig::move_line(int line, double mm, double) {
+    if (line < 0 || line >= kLines) return {Refusal::BadMessage, "There's no such line."};
+    if (estop_) return {Refusal::EStop, "The E-stop chain is open."};
+    if (state_ == RigState::Fault) return {Refusal::Fault, fault_list(faults_)};
+    if (!armed_ || state_ == RigState::Arming) return {Refusal::Disarmed, "Arm first."};
+    if (remote_) return {Refusal::Busy, "Turn remote control off first."};
+    if (state_ != RigState::Idle || busy()) return {Refusal::Busy, "Wait until everything is still."};
+    service_line_ = line;
+    service_left_ = mm;
+    state_ = RigState::Moving;
+    if (homed_) homed_ = false;
+    message_ = std::string("Moving line ") + cfg_.lines[line].name + " on its own. Home again before flying.";
+    return {};
+}
+
+void Rig::step_service(double dt) {
+    if (service_line_ < 0) return;
+    if (!drives_on_ || !brakes_released_ || !armed_) {
+        service_line_ = -1;
+        return;
+    }
+    const int i = service_line_;
+    if (fb_[i].tension > cfg_.tension_max) {
+        service_line_ = -1;
+        hard_fault(faults::Overload, std::string("Line ") + cfg_.lines[i].name + " pulled too hard while moving on its own.");
+        return;
+    }
+    constexpr double kServiceSpeed = 50.0;  // mm/s
+    const double step = std::min(std::fabs(service_left_), kServiceSpeed * dt);
+    const double d = service_left_ < 0 ? -step : step;
+    cmd_[i] += d;
+    service_left_ -= d;
+    if (std::fabs(service_left_) < 1e-9) {
+        service_line_ = -1;
+        message_ = std::string("Line ") + cfg_.lines[i].name + " moved. Home again before flying.";
+    }
+}
+
 Result Rig::set_limits(int axis, const AxisLimits& l) {
     if (!axis_present(axis)) return {Refusal::NoAxis, "There's no such axis."};
     if (!(l.min < l.max) || l.max_velocity <= 0 || l.max_accel <= 0)
@@ -300,7 +357,9 @@ Result Rig::set_limits(int axis, const AxisLimits& l) {
 bool Rig::needs_homing(const RigConfig& a, const RigConfig& b) {
     auto same = [](const Vec3& u, const Vec3& v) { return (u - v).norm() < 1e-9; };
     for (int i = 0; i < kLines; ++i)
-        if (!same(a.lines[i].anchor, b.lines[i].anchor) || !same(a.lines[i].attach, b.lines[i].attach)) return true;
+        if (!same(a.lines[i].anchor, b.lines[i].anchor) || !same(a.lines[i].attach, b.lines[i].attach) ||
+            a.sensors[i].drum != b.sensors[i].drum)
+            return true;
     return !same(a.dock, b.dock) || a.ball_radius != b.ball_radius || a.two_axis != b.two_axis ||
            (b.two_axis && a.fixed_y != b.fixed_y);
 }
@@ -317,6 +376,8 @@ Result Rig::reconfigure(const RigConfig& c) {
     window_ = std::max(1, static_cast<int>(std::lround(cfg_.smoothing / cfg_.control_period)));
     for (int a = 0; a < kAxes; ++a) axes_[a].reset(component(rehome ? cfg_.dock : p, a), window_);
     wind_.configure(cfg_.wind);
+    read_feedback();  // with the new corrections
+    hold_drives();
     lean_ = {};
     lean_count_ = 0;
     if (rehome && homed_) {
@@ -383,7 +444,7 @@ void Rig::update(double now) {
 
 void Rig::tick() {
     const double dt = cfg_.control_period;
-    fb_ = hw_.feedback();
+    read_feedback();
     if (hw_.estop_open()) {
         estop_ = true;
         if (state_ != RigState::EStop) enter_estop();
@@ -408,6 +469,7 @@ void Rig::tick() {
     step_wind();
     if (state_ == RigState::Arming) step_arming();
     if (state_ == RigState::Homing) step_homing(dt);
+    step_service(dt);
     step_motion(dt);
     check_lines(dt);
     step_parking();
@@ -421,6 +483,7 @@ void Rig::tick() {
 
 void Rig::enter_estop() {
     if (state_ == RigState::Homing) homed_ = false;
+    service_line_ = -1;
     state_ = RigState::EStop;
     armed_ = false;
     faults_ |= faults::EStop;
@@ -461,6 +524,7 @@ void Rig::soft_fault(std::uint32_t f, const std::string& why) {
 
 void Rig::begin_disarm() {
     if (state_ == RigState::Homing) homed_ = false;
+    service_line_ = -1;
     park_ = Park::None;
     armed_ = false;
     if (!drives_on_ || !brakes_released_) {
@@ -494,7 +558,7 @@ void Rig::step_disarm() {
 
 void Rig::step_arming() {
     if (arm_ == Arm::Enable) {
-        hw_.command(cmd_);
+        send_commands();
         bool ready = true;
         for (const LineFeedback& f : fb_) ready = ready && f.ready;
         if (ready) {
@@ -535,7 +599,7 @@ void Rig::step_homing(double dt) {
                 return;
             }
         }
-        hw_.command(cmd_);
+        send_commands();
         if (!all) return;
         // Every line is tight with the ball on the dock: now every length is known.
         LineArray t{};
@@ -591,7 +655,7 @@ void Rig::step_motion(double dt) {
     if (state_ != RigState::Arming)
         for (AxisMotion& a : axes_) a.step(dt, now_);
     if (!homed_) {
-        hw_.command(cmd_);  // position unknown: hold the drives where they are
+        send_commands();  // position unknown: hold the drives where they are
         return;
     }
     const Vec3 p = position();
@@ -616,7 +680,7 @@ void Rig::step_motion(double dt) {
         if (near_dock) trim_[i] *= std::exp(-dt / kTrimDecay);
         cmd_[i] = out[i] + trim_[i] + pull_ * free_[i] - offset_[i];
     }
-    hw_.command(cmd_);
+    send_commands();
 }
 
 void Rig::check_lines(double dt) {

@@ -42,6 +42,7 @@ whole rig), then fly.
 | `--no-push` | The wind doesn't push the ball |
 | `--pulley-error MM` | Pulley A is really this far off in x and y, to try calibration errors |
 | `--real-mass KG` | The head really weighs this (default: what the settings say, 4 kg) |
+| `--sensor-error` | The drives and load cells read a little off (1 to 2% on drums, 2 to 3 N on zeros, 2 to 5% on scales), to try the line test |
 
 ## What's simulated
 
@@ -60,6 +61,11 @@ these, Save, arm and home again, and fly: the ball lands where it's sent. The si
 rig stays as built; only what the controller believes changes. Settings changes over
 SCMP (`config` with `set`) are kept too.
 
+**Trying the line test:** start with `--sensor-error`. On the touchscreen: Setup, Sensors,
+Test beside a line. Where it says to unhook the line or hang a weight, use the viewer's
+**Unhook and hang** (with 0 kg, then a weight) for that line; the line list shows how high
+the weight's end is, to work out the rise. **Hook back on** when done.
+
 ## The viewer
 
 - **3-D view:** drag to turn, scroll to zoom, or pick a view. Lines turn amber when slack and
@@ -71,7 +77,7 @@ SCMP (`config` with `set`) are kept too.
   off, as on the real touchscreen.
 - **Make things happen:** press and release the E-stop, change the wind and gustiness,
   unplug the wind sensor, snag the ball with a 60 N pull, cut or mend a line, raise a drive
-  alarm, or reset everything.
+  alarm, unhook a line and hang a weight on it, or reset everything.
 - **Lines, wind, the Show Controller link, and a log** of commands and what the rig said.
 - **Touchscreen:** the Touchscreen button, beside the view buttons, swaps the 3-D view for the controller's real
   touchscreen (`ui/`), drawn by LVGL in the simulator. Click to tap; hold to hold.

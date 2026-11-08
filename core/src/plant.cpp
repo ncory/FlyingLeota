@@ -23,8 +23,9 @@ void Plant::command(const std::array<double, kLines>& positions) {
     if (!enabled_ || !released_ || estop_) return;  // brakes or no power: nothing moves
     for (int i = 0; i < kLines; ++i) {
         if (alarm_[i]) continue;
-        if (pos_[i] != positions[i]) dirty_ = true;
-        pos_[i] = positions[i];
+        const double real = positions[i] * sensors_[i].drum;
+        if (pos_[i] != real) dirty_ = true;
+        pos_[i] = real;
     }
 }
 
@@ -43,7 +44,9 @@ std::array<LineFeedback, kLines> Plant::feedback() {
             noise_state_ = noise_state_ * 1103515245u + 12345u;
             n = noise_ * ((noise_state_ >> 8 & 0xffff) / 32767.5 - 1.0);
         }
-        fb[i] = {pos_[i], std::max(0.0, tension_[i] + n), enabled_ && !alarm_[i], alarm_[i]};
+        const LineSensors& s = sensors_[i];
+        fb[i] = {pos_[i] / s.drum, s.load_zero + std::max(0.0, tension_[i] + n) / s.load_scale, enabled_ && !alarm_[i],
+                 alarm_[i]};
     }
     return fb;
 }
@@ -52,7 +55,7 @@ void Plant::forces(const Vec3& c, const Vec3& rot, std::array<double, kLines>& t
     for (int i = 0; i < kLines; ++i) {
         const double out = zero_[i] + pos_[i];
         const double d = (cfg_.lines[i].anchor - (c + rotate(rot, cfg_.lines[i].attach))).norm();
-        t[i] = cut_[i] || d <= out ? 0.0 : cfg_.line_ea * (d - out) / out;
+        t[i] = cut_[i] || hung_[i] || d <= out ? 0.0 : cfg_.line_ea * (d - out) / out;
     }
 }
 
@@ -113,7 +116,7 @@ double size6(const double v[6]) {
 // switching in and out can't throw it.
 bool Plant::equilibrium(Vec3& c, Vec3& rot) const {
     int taut = 0;
-    for (int i = 0; i < kLines; ++i) taut += cut_[i] ? 0 : 1;
+    for (int i = 0; i < kLines; ++i) taut += cut_[i] || hung_[i] ? 0 : 1;
     if (taut < 3) return false;
     double r[6];
     residual(c, rot, r);
@@ -196,6 +199,16 @@ void Plant::solve() {
         }
     }
     forces(ball_, rot_, tension_);
+    for (int i = 0; i < kLines; ++i) {
+        if (!hung_[i] || cut_[i]) continue;
+        tension_[i] = hang_height(i) > 0.0 ? hang_kg_[i] * kGravity : 0.0;  // on the floor: slack
+    }
+}
+
+double Plant::hang_height(int i) {
+    const double out = zero_[i] + pos_[i];
+    const double t = hang_kg_[i] * kGravity;
+    return std::max(0.0, cfg_.lines[i].anchor.z - out * (1.0 + t / cfg_.line_ea));  // the floor stops it
 }
 
 }  // namespace leota

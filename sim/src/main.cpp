@@ -36,7 +36,8 @@ void usage() {
         "  --gusty 0..1       how much the wind varies (default 0.3)\n"
         "  --no-push          the wind doesn't push the ball\n"
         "  --pulley-error MM  pulley A is really this far off in x and y (default 0)\n"
-        "  --real-mass KG     the head really weighs this (default: as set, 4 kg)\n");
+        "  --real-mass KG     the head really weighs this (default: as set, 4 kg)\n"
+        "  --sensor-error     drives and load cells read a little off, to try the line test\n");
 }
 
 }  // namespace
@@ -62,6 +63,7 @@ int main(int argc, char** argv) {
         else if (a == "--pulley-error") opt.pulley_error = std::atof(next());
         else if (a == "--settings") opt.settings_file = next();
         else if (a == "--real-mass") opt.real_mass = std::atof(next());
+        else if (a == "--sensor-error") opt.sensor_error = true;
         else if (a == "-h" || a == "--help") { usage(); return 0; }
         else {
             std::fprintf(stderr, "unknown option %s\n", a.c_str());

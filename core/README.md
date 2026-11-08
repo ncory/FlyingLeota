@@ -23,10 +23,11 @@ Needs CMake 3.16 or later and a C++17 compiler. The tests take under a second.
 | `geometry.hpp` | Line lengths for a ball position, the tensions that hold it there, how the ball leans there, how much line to pay out for the stretch, and whether a point or a path is allowed. |
 | `profile.hpp` | One axis's motion: trapezoid plans from any speed, timed moves (the same maths as Show Controller's `plan_speed`), jog, stops, and the smoothing filter that limits jerk. |
 | `wind.hpp` | Gusts, averages, the Green, Amber and Red levels, and the Red hold. |
-| `hardware.hpp` | What the controller needs from the hardware. The firmware implements it. |
+| `hardware.hpp` | What the controller needs from the hardware. The firmware implements it. The rig corrects its readings with `config().sensors`. |
 | `rig.hpp` | The controller: states, arming, homing, flying, tension checks, faults, remote and local, wind, parking. |
 | `settings.hpp` | What a person may change on site, as one table of fields with labels, units and ranges; checks; JSON for flash; `SettingsKeeper` applies changes to the rig and stores them through a `SettingsStore` (NVS on the board, a file in the simulator). |
 | `calibration.hpp` | The calibration check: points to fly to, `CalibrationRun` to fly and measure them, and `fit_calibration()`, which finds the pulley positions and head weight that agree with what was measured. |
+| `line_test.hpp` | The line test: one line's load cell zero and scale from a known weight, and its drum correction from raising that weight 500 mm. |
 | `scmp.hpp` | SCMP version 1 with its Optional fields: messages in, acks and status out. No transport. |
 | `plant.hpp` | A simulated rig for tests and the PC simulator. Not used by the firmware. |
 

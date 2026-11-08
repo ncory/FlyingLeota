@@ -110,6 +110,11 @@ std::string check_config(const RigConfig& c) {
     if (lift >= c.mass * kGravity)
         say("The homing pretension would lift the ball off the dock. Lower it.");
     if (c.pretension <= 0 || c.pretension >= c.tension_max) say("The pretension is out of range.");
+    for (const LineSensors& s : c.sensors)
+        if (s.drum < 0.5 || s.drum > 2.0 || s.load_scale < 0.2 || s.load_scale > 5.0) {
+            say("A drum or load cell correction is far from 1: measure it again.");
+            break;
+        }
     if (c.two_axis && std::fabs(c.dock.y - c.fixed_y) > 0.5)
         say("In two-axis mode the dock must sit in the fixed depth plane.");
     return out;

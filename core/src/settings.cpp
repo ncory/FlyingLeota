@@ -24,6 +24,18 @@ void anchor_set(Settings& s, double v) {
     (C == 0 ? a.x : C == 1 ? a.y : a.z) = v;
 }
 
+// Sensor corrections: one getter and setter per line and kind.
+template <int L, int K>
+double sensor_get(const Settings& s) {
+    const LineSensors& c = s.rig.sensors[L];
+    return K == 0 ? c.load_zero : K == 1 ? c.load_scale : c.drum;
+}
+template <int L, int K>
+void sensor_set(Settings& s, double v) {
+    LineSensors& c = s.rig.sensors[L];
+    (K == 0 ? c.load_zero : K == 1 ? c.load_scale : c.drum) = v;
+}
+
 // The dock carries the table under it, the bottom of the workspace and, in two-axis
 // mode, the depth plane.
 void move_dock(Settings& s, const Vec3& to) {
@@ -47,6 +59,20 @@ const char* kPulleyHelp =
     "Where the line leaves its pulley, from the middle of the floor: x to the audience's right, "
     "y upstage, z up from the deck. Needs homing again.";
 const char* kNetHelp = "Takes effect when the controller restarts.";
+
+const char* kZeroHelp = "What this line's load cell reads with nothing pulling on it. The line test measures it.";
+const char* kScaleHelp = "Real newtons per newton the load cell reads above its zero. The line test measures it.";
+const char* kDrumHelp =
+    "Real line per millimetre the drive counts: above 1, the drum lets out more than it counts. The line test "
+    "measures it. Needs homing again.";
+
+#define SENSOR(L, NAME)                                                                                       \
+    Field{"sensor." NAME ".zero", "Sensors", "Line " NAME " load cell zero", "N", K::Number, -50, 50, 2, kZeroHelp, \
+          sensor_get<L, 0>, sensor_set<L, 0>, nullptr},                                                       \
+    Field{"sensor." NAME ".scale", "Sensors", "Line " NAME " load cell scale", "", K::Number, 0.5, 2, 4,          \
+          kScaleHelp, sensor_get<L, 1>, sensor_set<L, 1>, nullptr},                                           \
+    Field{"sensor." NAME ".drum", "Sensors", "Line " NAME " drum", "", K::Number, 0.8, 1.25, 4, kDrumHelp,        \
+          sensor_get<L, 2>, sensor_set<L, 2>, nullptr}
 
 #define PULLEY(L, NAME)                                                                              \
     Field{"pulley." NAME ".x", "Measurements", "Pulley " NAME " across (x)", "mm", K::Number, -6000, 6000, 0, \
@@ -165,6 +191,9 @@ const std::vector<Field>& make_fields() {
          "Everything that flies: the ball, head, battery and fittings.",
          [](const Settings& s) { return s.rig.mass; }, [](Settings& s, double v) { s.rig.mass = v; }, nullptr},
 
+        // -- Sensors
+        SENSOR(0, "A"), SENSOR(1, "B"), SENSOR(2, "C"), SENSOR(3, "D"),
+
         // -- Network
         {"net.dhcp", "Network", "Address from DHCP", "", K::Toggle, 0, 1, 0, kNetHelp,
          [](const Settings& s) { return s.net.dhcp ? 1.0 : 0.0; }, [](Settings& s, double v) { s.net.dhcp = v != 0; },
@@ -187,6 +216,7 @@ const std::vector<Field>& make_fields() {
 }
 
 #undef PULLEY
+#undef SENSOR
 
 double round_to(double v, int decimals) {
     const double k = std::pow(10.0, decimals);

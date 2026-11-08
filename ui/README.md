@@ -64,8 +64,9 @@ and the brakes hold, and how to recover. STOP is on every screen.
 - **Groups:** Flight (two-axis mode, workspace edges, speeds, accelerations, smoothing),
   Lines and safety (slack, overload and mismatch limits, heartbeat timeout, whether Show
   Controller may arm), Wind (sensor fitted, Amber and Red gusts, hold time, Amber speed,
-  swing alarm), Measurements (pulleys, dock, head weight), Network (DHCP or a fixed
-  address, the SCMP port) and the PIN.
+  swing alarm), Measurements (pulleys, dock, head weight), Sensors (each line's load cell
+  zero and scale, and drum correction), Network (DHCP or a fixed address, the SCMP port)
+  and the PIN.
 - **Editing:** tap a row. Numbers are typed on a number pad that shows the allowed range
   and refuses anything outside it; switches flip at a tap. Changed rows turn amber.
 - **Saving:** Save checks the settings as a whole (Amber below Red, the dock inside the
@@ -97,15 +98,39 @@ measurements, and one big error spreads a few millimetres onto the others. A sec
 after using the first cleans that up. With the load cells' noise at 0.3 N it still finds the
 pulley within 15 mm.
 
+### Sensors and the line test
+
+![Sensors after testing line B](../docs/images/touchscreen-sensors.png)
+
+The drives count line from the drum's nominal size, and the load cells read newtons from
+their data sheets. Neither is exact: in the simulator, errors of 1 to 2% on the drums and
+2 to 3 N on the zeros put the ball 15 mm off. Sensors holds a correction for each, and
+**Test** beside each line measures them, step by step:
+
+![The line test, ready to raise the weight](../docs/images/touchscreen-line-test.png)
+
+1. **Zero:** unhook the line from the ball and let it hang with nothing on it. Two seconds of
+   readings give the load cell's zero.
+2. **Scale:** hang a weighed weight (2 to 10 kg) from it, clear of the floor. Its reading
+   above the zero gives the scale.
+3. **Drum:** mark the weight's height. With the rig armed and remote control off, the winch
+   reels in 500 mm on its own. (Raising, not lowering: from a corner pulley, a line long
+   enough to reach the ball hangs nearly to the deck.) Enter how far the weight went up;
+   allowing for the line's stretch under the weight, that gives the drum's correction.
+
+**Use these** puts the three values into Sensors, to save. "Finish here" keeps what's
+measured so far. Hook the line back on and home before flying. In the simulator the test
+finds each zero and scale exactly and each drum to 0.1% (a millimetre in 500).
+
 ## Files
 
 | File | Does |
 | --- | --- |
 | `include/leota/ui.hpp` | The `Ui` class and `UiLink`. |
-| `src/ui.cpp` | Every screen, the arm dialog, Setup's number pad, the calibration check and the E-stop page. |
+| `src/ui.cpp` | Every screen, the arm dialog, Setup's number pad, the calibration check, the line test and the E-stop page. |
 | `lv_conf.h` | LVGL's settings: 16-bit color, 512 KB for LVGL's heap. |
 | `fonts/` | Inter at 14, 16, 20 and 28 px with a few icons. See `fonts/README.md`. |
-| `tests/test_ui.cpp` | Taps through the screens against the simulated rig, through LVGL's own pointer input: arming, homing, STOP, jog, the E-stop, typing and saving settings, the PIN, and a whole calibration check. |
+| `tests/test_ui.cpp` | Taps through the screens against the simulated rig, through LVGL's own pointer input: arming, homing, STOP, jog, the E-stop, typing and saving settings, the PIN, a whole calibration check, and a whole line test. |
 
 ## On the ESP32-P4
 

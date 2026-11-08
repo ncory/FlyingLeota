@@ -30,6 +30,16 @@ public:
     bool line_cut(int line) const { return cut_[line]; }
     bool alarm(int line) const { return alarm_[line]; }
     void push(const Vec3& force_n) { push_ = force_n; dirty_ = true; }  // e.g. wind
+    // How the drives and load cells really read: a drive counts mm / drum, a load cell
+    // reads load_zero + N / load_scale. The controller's config().sensors undo it.
+    void set_sensors(const std::array<LineSensors, kLines>& s) { sensors_ = s; }
+    // Unhooks a line from the ball and hangs `kg` from its end (0: nothing), for the
+    // line test. hook() puts it back on the ball.
+    void hang(int line, double kg) { hung_[line] = true; hang_kg_[line] = kg; dirty_ = true; }
+    void hook(int line) { hung_[line] = false; dirty_ = true; }
+    bool hung(int line) const { return hung_[line]; }
+    double hang_kg(int line) const { return hang_kg_[line]; }
+    double hang_height(int line);  // mm off the deck, the end of a hung line (0: on the floor)
     void tension_noise(double amplitude_n) { noise_ = amplitude_n; }
 
     Vec3 ball() { solve(); return ball_; }
@@ -50,7 +60,9 @@ private:
 
     RigConfig cfg_;
     std::array<double, kLines> pos_{}, zero_{};  // drive counts; line out = zero + pos
-    std::array<bool, kLines> alarm_{}, cut_{};
+    std::array<bool, kLines> alarm_{}, cut_{}, hung_{};
+    std::array<double, kLines> hang_kg_{};
+    std::array<LineSensors, kLines> sensors_{};
     std::array<double, kLines> tension_{};
     Vec3 ball_, rot_, push_;
     bool enabled_ = false, released_ = false, estop_ = false;

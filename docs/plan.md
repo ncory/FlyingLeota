@@ -7,8 +7,9 @@ over the Show Controller Motion Protocol (SCMP).
 Status, November 2026: planning done. The motion core (`core/`) and the PC simulator
 (`sim/`) are written and tested, and Show Controller flies the simulated head through its
 own SCMP client and Motion page. The touchscreen (`ui/`) is built in LVGL and runs inside
-the simulator's page, with every setting editable from Setup and a calibration check that
-flies the ball and works out where the pulleys really are. No hardware yet. Every "Proposed" item below needs a yes from
+the simulator's page, with every setting editable from Setup, a line test for each load cell
+and drum, and a calibration check that flies the ball and works out where the pulleys
+really are. No hardware yet. Every "Proposed" item below needs a yes from
 Nate before it is built.
 
 ## Summary
@@ -827,7 +828,7 @@ tabs and a large STOP that is always there.
 | **Jog** | Arrows around a top view for x and y, up and down for z, three speeds, "Go to dock" and "Service position". Hold to move. Local mode only. |
 | **Weather** | Wind now, gust and average. A bar chart of the last 30 minutes' gusts with the Amber and Red lines. Line swing. The three levels and what each does, with the current one marked. The lockout, with a 15-minute calm countdown during a Red hold. |
 | **Diagnostics** | Each winch: line out, tension, what the model expects, swing, drive, brake, motor temperature. Safety inputs. Wind sensor health. Network. |
-| **Setup** (PIN) | 3-axis or 2-axis mode. Workspace, speed, acceleration and smoothing. Tension limits, heartbeat timeout, whether Show Controller may arm (schedules too: SCMP can't tell them apart). Wind thresholds and hold time. Pulley and dock positions, head weight. Address and port. The PIN. **Check by flying**: the ball visits nine points while every line is measured, and a fit finds where the pulleys really are and what the head weighs. |
+| **Setup** (PIN) | 3-axis or 2-axis mode. Workspace, speed, acceleration and smoothing. Tension limits, heartbeat timeout, whether Show Controller may arm (schedules too: SCMP can't tell them apart). Wind thresholds and hold time. Pulley and dock positions, head weight. Each line's load cell zero and scale and drum correction, with a **line test** that measures them (a known weight, then raising it 500 mm). Address and port. The PIN. **Check by flying**: the ball visits nine points while every line is measured, and a fit finds where the pulleys really are and what the head weighs. |
 | **Log** | Tonight's events in plain sentences, filtered by safety, motion, wind, network and show. |
 
 During an E-stop the Status screen turns red: which button is pressed, that motor power is
@@ -929,7 +930,7 @@ flowchart LR
 | --- | --- | --- |
 | **0. Buy bench parts** | See "What to buy now" below. | |
 | **1. Bench electronics** | Ethernet and an SCMP session with Show Controller's SCMP client. Touchscreen running. **Step pulses from the P4** on a logic analyzer: smooth at very slow speeds, no glitches while the screen and network are busy. A CAN link to the ODrive. One E-stop that cuts the 48 V supply through a contactor. | That one ESP32-P4 can do motion, network and screen together. Step pulses on the P4 are the least proven part (FastAccelStepper lists P4 support as experimental), so this test comes first. |
-| **2. Simulation** (done) | Kinematics with the lean (section 4), profiles and state machine, unit-tested on a PC. An SCMP simulator. | Firmware structure. Needs no hardware. Built: `core/` (84 tests, the lean, settings and calibration check included), `sim/`, and the touchscreen in `ui/` (13 tests); Show Controller flies the simulated head. |
+| **2. Simulation** (done) | Kinematics with the lean (section 4), profiles and state machine, unit-tested on a PC. An SCMP simulator. | Firmware structure. Needs no hardware. Built: `core/` (90 tests: the lean, settings, the calibration check and the line test included), `sim/`, and the touchscreen in `ui/` (14 tests); Show Controller flies the simulated head. |
 | **3. One-winch tests** | A winch on the floor, a line up over a pulley at about 2.4 m (a beam or a temporary post), down to a dead weight. Water jugs or sandbags of 2, 5, 10 and 15 kg give line tensions across the full range (20–150 N). Run both motor types on the same rig. See below. | Motor type, drum size, brake size, and a short list of lines. |
 | **4. Gazebo test setup** | Buy three more winches of the chosen type. Put the gazebo up somewhere sheltered and mount them on it. Do the inward-pull test first. Fly a dummy head of the right weight and size (a cheap ball with weights inside, hung from a copy of the top fitting). Check that the lean and facing match the model. Dock homing, tension management, settling after moves, S-curve tuning, the joystick from Show Controller. | The control approach works. The final pin plan and I/O carrier board. |
 | **5. Full scale** | The real head. Wind tests with a fan or leaf blower (section 6). Failure tests: E-stop at full speed, unplug Ethernet, cut power, a line break on the dummy head. | Wind limits. Final line choice. |

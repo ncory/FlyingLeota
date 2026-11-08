@@ -72,6 +72,11 @@ public:
     Result stop(std::optional<double> decel, double now);
     Result park(double now);  // fly back over the dock and set the ball down
     Result clear_faults(double now);  // once their causes are gone; stays disarmed
+    // Pays one line in (negative) or out by `mm`, alone, for Setup's line test with that
+    // line unhooked from the ball. Needs the rig armed and still, with remote control
+    // off. Afterwards the rig needs homing again.
+    Result move_line(int line, double mm, double now);
+    bool moving_line() const { return service_line_ >= 0; }
     Result set_limits(int axis, const AxisLimits& limits);
     // New settings, from Setup. Only while disarmed. A change to where the pulleys or the
     // dock are, or to two-axis mode, needs the ball on the dock and homing again.
@@ -108,6 +113,8 @@ public:
     const AxisLimits& limits(int axis) const { return cfg_.axes[axis]; }
     bool axis_present(int axis) const { return axis >= 0 && axis < kAxes && !(cfg_.two_axis && axis == 1); }
     std::array<LineStatus, kLines> lines() const;
+    // What each drive and load cell reports before the corrections in config().sensors.
+    const std::array<LineFeedback, kLines>& raw_feedback() const { return raw_; }
     const WindMonitor& wind() const { return wind_; }
     const RigConfig& config() const { return cfg_; }
     double now() const { return now_; }
@@ -136,6 +143,9 @@ private:
     double speed_scale() const;
     bool flying() const;
     void hold_drives();  // command where the drives are now
+    void read_feedback();   // from the drives, corrected
+    void send_commands();   // cmd_ to the drives, in their own mm
+    void step_service(double dt);
 
     RigConfig cfg_;
     Hardware& hw_;
@@ -149,7 +159,9 @@ private:
     std::uint32_t faults_ = 0;
     std::string message_;
 
-    std::array<LineFeedback, kLines> fb_{};
+    std::array<LineFeedback, kLines> fb_{}, raw_{};
+    int service_line_ = -1;
+    double service_left_ = 0.0;
     LineArray offset_{}, trim_{}, cmd_{}, expected_{}, free_{};
     double pull_ = 0.0;  // mm along the free direction: the tension loop's trim
     Vec3 lean_;          // the ball's modelled lean (rotation vector)

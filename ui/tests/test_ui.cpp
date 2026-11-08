@@ -295,7 +295,7 @@ TEST_CASE("a new PIN is entered twice and works once saved") {
     SettingsKeeper keeper(settings_for(gazebo_config()));
     Panel p(gazebo_config(), nullptr, &keeper);
     p.unlock();
-    p.tap("setup.group.5");
+    p.tap("setup.group.6");
     p.tap("setup.field.pin");
     p.type("5678");
     CHECK(p.label("edit.title") == "New PIN again");
@@ -355,4 +355,51 @@ TEST_CASE("an E-stop takes over the screen") {
     REQUIRE(p.enabled("controls.clear"));
     p.tap("controls.clear");
     CHECK(p.sim.rig.state() == RigState::Disarmed);
+}
+
+TEST_CASE("the line test, by taps: zero, a weight, the rise, then use and save") {
+    SettingsKeeper keeper(settings_for(gazebo_config()));
+    Panel p(gazebo_config(), nullptr, &keeper);
+    const LineSensors truth{1.02, 3.1, 0.97};
+    std::array<LineSensors, kLines> real{};
+    real[1] = truth;
+    p.sim.plant.set_sensors(real);
+    p.unlock();
+    p.tap("setup.group.4");  // Sensors
+    p.tap("setup.test.B");
+    REQUIRE(p.shown("lt.dialog"));
+    CHECK(p.label("lt.instructions").find("Unhook line B") != std::string::npos);
+
+    p.sim.plant.hang(1, 0.0);
+    p.tap("lt.primary");  // Measure zero
+    REQUIRE(p.until([&] { return p.label("lt.primary") == "Measure weight"; }, 5.0));
+    p.tap("lt.weight");
+    p.type("6");
+    CHECK(p.label("lt.weight") == "Weight: 6.00 kg");
+    p.sim.plant.hang(1, 6.0);
+    p.tap("lt.primary");
+    REQUIRE(p.until([&] { return p.label("lt.primary") == "Raise 500 mm"; }, 5.0));
+    CHECK_FALSE(p.enabled("lt.primary"));  // not armed yet
+    CHECK(p.label("lt.instructions").find("Arm the rig first") != std::string::npos);
+    REQUIRE(p.sim.arm());
+    p.sim.rig.set_remote(false, p.sim.t);
+    p.step(0.1);
+    REQUIRE(p.enabled("lt.primary"));
+    const double before = p.sim.plant.hang_height(1);
+    p.tap("lt.primary");
+    REQUIRE(p.until([&] { return p.label("lt.primary") == "Enter the rise"; }, 20.0));
+    const double rose = p.sim.plant.hang_height(1) - before;
+    p.tap("lt.primary");
+    p.type(std::to_string(static_cast<long>(std::lround(rose))));
+    REQUIRE(p.label("lt.primary") == "Use these");
+    p.tap("lt.primary");
+    CHECK_FALSE(p.shown("lt.dialog"));
+    CHECK(p.label("setup.status") == "3 changes not saved. Disarm to save.");
+    REQUIRE(p.sim.rig.disarm(p.sim.t));
+    REQUIRE(p.until([&] { return p.sim.rig.state() == RigState::Disarmed; }, 3.0));
+    p.tap("setup.save");
+    const LineSensors& got = p.sim.rig.config().sensors[1];
+    CHECK(got.load_zero == doctest::Approx(truth.load_zero).epsilon(0.01));
+    CHECK(got.load_scale == doctest::Approx(truth.load_scale).epsilon(0.002));
+    CHECK(got.drum == doctest::Approx(truth.drum).epsilon(0.003));
 }

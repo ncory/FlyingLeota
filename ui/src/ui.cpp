@@ -16,6 +16,7 @@
 #include <vector>
 
 #include "leota/calibration.hpp"
+#include "leota/line_test.hpp"
 
 extern "C" {
 LV_FONT_DECLARE(leota_inter_14)
@@ -59,6 +60,15 @@ std::string mm(double v) {
         out += digits[i];
     }
     return (n < 0 ? std::string(kMinus) : std::string()) + out;
+}
+
+// A number with a real minus sign: "−1.80".
+std::string num(double v, int decimals) {
+    char buf[40];
+    const double k = std::pow(10.0, decimals);
+    const double r = std::round(v * k) / k;
+    std::snprintf(buf, sizeof buf, "%.*f", decimals, std::fabs(r));
+    return (r < 0 ? std::string(kMinus) : std::string()) + buf;
 }
 
 std::string lower_first(std::string s) {
@@ -322,6 +332,9 @@ struct Ui::Impl {
     EditMode ed_mode = EditMode::Field;
     std::string ed_text, ed_pin;
     bool ed_fresh = true;
+    std::function<void(double)> ed_done;  // for a value that isn't a setting
+    Field ed_temp{};
+    std::string ed_temp_label, ed_temp_help, ed_temp_unit;
 
     // The calibration check
     CalibrationRun cal;
@@ -330,6 +343,13 @@ struct Ui::Impl {
              *cal_msg = nullptr, *cal_start = nullptr, *cal_stop = nullptr, *cal_use = nullptr, *cal_close = nullptr,
              *cal_summary = nullptr;
     std::array<lv_obj_t*, 5> cal_found{}, cal_off{};
+    std::array<lv_obj_t*, kLines> sensor_now{};
+
+    // The line test
+    LineTest lt;
+    lv_obj_t *lt_dialog = nullptr, *lt_title = nullptr, *lt_instr = nullptr, *lt_msg = nullptr, *lt_weight = nullptr,
+             *lt_primary = nullptr, *lt_skip = nullptr, *lt_close = nullptr, *lt_live = nullptr, *lt_live_note = nullptr;
+    std::array<lv_obj_t*, 3> lt_dot{}, lt_step{}, lt_before{}, lt_found{};
 
     // Log
     struct Entry { LogKind kind; std::string clock, text; };
@@ -1148,8 +1168,8 @@ struct Ui::Impl {
     // -- Setup ---------------------------------------------------------------------------
     // Behind a PIN. Changes go into a draft; Save checks them, gives them to the rig and
     // stores them. Numbers are typed on a keypad; Measurements also has the calibration check.
-    static constexpr int kGroups = 6;
-    const char* group_names[kGroups] = {"Flight", "Lines and safety", "Wind", "Measurements", "Network", "PIN"};
+    static constexpr int kGroups = 7;
+    const char* group_names[kGroups] = {"Flight", "Lines and safety", "Wind", "Measurements", "Sensors", "Network", "PIN"};
 
     void build_setup(lv_obj_t* p) {
         locked = box(p, 0, 0, kW, kBody, kBg);
@@ -1167,7 +1187,7 @@ struct Ui::Impl {
 
         unlocked = box(p, 0, 0, kW, kBody, kBg);
         for (int g = 0; g < kGroups; ++g) {
-            lv_obj_t* b = button(unlocked, 16, 14 + g * 60, 200, 52, group_names[g]);
+            lv_obj_t* b = button(unlocked, 16, 14 + g * 54, 200, 48, group_names[g]);
             name("setup.group." + std::to_string(g), b);
             group_buttons.push_back(b);
             on_click(b, [this, g] {
@@ -1175,7 +1195,7 @@ struct Ui::Impl {
                 fill_group();
             });
         }
-        lv_obj_t* lock = button(unlocked, 16, 394, 200, 52, "Lock");
+        lv_obj_t* lock = button(unlocked, 16, 398, 200, 48, "Lock");
         name("setup.lock", lock);
         on_click(lock, [this] {
             draft = keeper->settings();
@@ -1201,6 +1221,7 @@ struct Ui::Impl {
         show(unlocked, false);
         build_editor();
         build_calibration();
+        build_line_test();
     }
 
     void key(int i) {
@@ -1232,18 +1253,22 @@ struct Ui::Impl {
     // Rebuilds the open group from the draft.
     void fill_group() {
         for (auto it = named.begin(); it != named.end();) {
-            const bool row = it->first.rfind("setup.field.", 0) == 0 || it->first == "setup.calibrate";
+            const bool row = it->first.rfind("setup.field.", 0) == 0 || it->first == "setup.calibrate" ||
+                             it->first.rfind("setup.test.", 0) == 0;
             it = row ? named.erase(it) : std::next(it);
         }
         lv_obj_clean(set_rows);
         row_actions.clear();  // their widgets are gone
+        sensor_now = {};
+        shown.clear();        // a new label may reuse an old one's address
         for (int g = 0; g < kGroups; ++g) {
             set_color(group_buttons[g], g == group ? kBlueBg : kRaised);
             lv_obj_set_style_border_color(group_buttons[g], hex(g == group ? kBlue : kEdge), 0);
         }
         set(set_title, group_names[group]);
         if (group == 3) build_measurements();
-        else if (group == 5) build_pin();
+        else if (group == 4) build_sensors();
+        else if (group == 6) build_pin();
         else build_list(group_names[group]);
         refresh_setup();
     }
@@ -1333,6 +1358,45 @@ struct Ui::Impl {
         click_row(check, [this] { open_calibration(); });
     }
 
+    void build_sensors() {
+        lv_obj_t* m = box(set_rows, 0, 0, 776, 360, kCard);
+        const char* heads[4] = {"Load cell zero", "Load cell scale", "Drum", "Reads now"};
+        for (int c = 0; c < 4; ++c) {
+            lv_obj_t* h = text(m, 100 + c * 146, 4, heads[c], &leota_inter_14, kMuted);
+            lv_obj_set_width(h, 136);
+            lv_obj_set_style_text_align(h, LV_TEXT_ALIGN_CENTER, 0);
+        }
+        const char* kinds[3] = {"zero", "scale", "drum"};
+        for (int r = 0; r < kLines; ++r) {
+            const char name[2] = {static_cast<char>('A' + r), 0};
+            text(m, 20, 38 + r * 52, (std::string("Line ") + name).c_str(), &leota_inter_16, kSoft);
+            for (int c = 0; c < 3; ++c) {
+                const Field& f = *find_field(std::string("sensor.") + name + "." + kinds[c]);
+                const bool ch = changed(f);
+                lv_obj_t* b = box(m, 100 + c * 146, 26 + r * 52, 136, 44, kChip, 8, ch ? kAmber : kChipEdge);
+                lv_obj_set_style_bg_color(b, hex(kRaised), LV_STATE_PRESSED);
+                lv_obj_t* l = text(b, 0, 12, field_text(f, draft).c_str(), &leota_inter_16_semi, ch ? kAmberSoft : kInk);
+                lv_obj_set_width(l, 136);
+                lv_obj_set_style_text_align(l, LV_TEXT_ALIGN_CENTER, 0);
+                name_row(std::string("setup.field.") + f.key, b);
+                click_row(b, [this, &f] { tap_field(f); });
+            }
+            sensor_now[r] = text(m, 100 + 3 * 146, 38 + r * 52, "", &leota_inter_16, kSoft);
+            lv_obj_set_width(sensor_now[r], 136);
+            lv_obj_set_style_text_align(sensor_now[r], LV_TEXT_ALIGN_CENTER, 0);
+            lv_obj_t* t = button(m, 690, 26 + r * 52, 66, 44, "Test", Kind::Blue);
+            name_row(std::string("setup.test.") + name, t);
+            click_row(t, [this, r] { open_line_test(r); });
+        }
+        text(m, 20, 240,
+             "Test each line once it's rigged, and after changing a load cell or drum: you'll need a weighed "
+             "2 to 10 kg weight and a tape measure. Load cells drift with the cold, so test the zero again on a "
+             "cold night.",
+             &leota_inter_14, kMuted, 736);
+    }
+
+    void name_row(const std::string& n, lv_obj_t* o) { name(n, o); }
+
     void build_pin() {
         lv_obj_t* m = box(set_rows, 0, 0, 776, 360, kCard);
         text(m, 20, 6, "The PIN unlocks this screen. Choose 4 to 8 digits, and tell the people who need it.",
@@ -1352,6 +1416,11 @@ struct Ui::Impl {
 
     void refresh_setup() {
         if (lv_obj_has_flag(unlocked, LV_OBJ_FLAG_HIDDEN)) return;
+        if (group == 4) {
+            const auto ls = rig.lines();
+            for (int i = 0; i < kLines; ++i)
+                if (sensor_now[i]) set(sensor_now[i], num(ls[i].tension, 1) + " N");
+        }
         if (keeper->revision() != seen_revision) {
             // Changed elsewhere (SCMP set new limits): take it, unless there are edits here.
             seen_revision = keeper->revision();
@@ -1457,10 +1526,27 @@ struct Ui::Impl {
     }
 
     void open_editor(const Field* f) {
+        ed_done = nullptr;
+        open_editor_for(f, f->get(draft));
+    }
+
+    // The number pad for a value that isn't a setting: `done` gets it once it's in range.
+    void open_number(const std::string& title, const std::string& help, const std::string& unit, double min,
+                     double max, int decimals, double value, std::function<void(double)> done) {
+        ed_temp_label = title;
+        ed_temp_help = help;
+        ed_temp_unit = unit;
+        ed_temp = Field{ed_temp_label.c_str(), "", ed_temp_label.c_str(), ed_temp_unit.c_str(), Field::Kind::Number,
+                        min, max, decimals, ed_temp_help.c_str(), nullptr, nullptr, nullptr};
+        open_editor_for(&ed_temp, value);
+        ed_done = std::move(done);
+    }
+
+    void open_editor_for(const Field* f, double value) {
         ed_field = f;
         ed_mode = EditMode::Field;
-        ed_text = f->kind == Field::Kind::Address ? address_text(static_cast<std::uint32_t>(f->get(draft)))
-                                                  : plain_number(f->get(draft), f->decimals);
+        ed_text = f->kind == Field::Kind::Address ? address_text(static_cast<std::uint32_t>(value))
+                                                  : plain_number(value, f->decimals);
         ed_fresh = true;
         set(ed_title, f->label);
         set(ed_help, f->help);
@@ -1475,6 +1561,7 @@ struct Ui::Impl {
         enable(ed_keys["minus"], f->kind == Field::Kind::Number && f->min < 0);
         show_edit_text();
         show(editor, true);
+        lv_obj_move_foreground(editor);
     }
 
     void open_pin_editor() {
@@ -1489,6 +1576,7 @@ struct Ui::Impl {
         enable(ed_keys["minus"], false);
         show_edit_text();
         show(editor, true);
+        lv_obj_move_foreground(editor);
     }
 
     void show_edit_text() {
@@ -1563,8 +1651,14 @@ struct Ui::Impl {
         }
         std::string why;
         if (!field_allows(f, v, &why)) return edit_error(why);
-        f.set(draft, v);
         show(editor, false);
+        if (ed_done) {
+            const auto done = std::move(ed_done);
+            ed_done = nullptr;
+            done(v);
+            return;
+        }
+        f.set(draft, v);
         fill_group();
     }
 
@@ -1684,6 +1778,181 @@ struct Ui::Impl {
         show(cal_dialog, false);
         group = 3;
         fill_group();
+    }
+
+    // -- the line test -------------------------------------------------------------------
+    void build_line_test() {
+        lt_dialog = box(lv_display_get_layer_top(disp), 0, 0, kW, 600 - kNav, 0x05070A);
+        name("lt.dialog", lt_dialog);
+        lv_obj_set_style_bg_opa(lt_dialog, LV_OPA_80, 0);
+        lv_obj_add_flag(lt_dialog, LV_OBJ_FLAG_CLICKABLE);
+        lv_obj_t* c = box(lt_dialog, 16, 8, 992, 508, 0x151B24, 16, kEdge);
+        lt_title = text(c, 24, 18, "", &leota_inter_28_bold);
+        const char* steps[3] = {"1. Zero, with nothing on the line", "2. Scale, with a known weight",
+                                "3. Drum, raising the weight 500 mm"};
+        for (int i = 0; i < 3; ++i) {
+            lt_dot[i] = dot(c, 24, 70 + i * 32, 12, kOff);
+            lt_step[i] = text(c, 46, 66 + i * 32, steps[i], &leota_inter_16, kSoft);
+        }
+        lv_obj_t* ib = box(c, 24, 170, 444, 150, kDark, 10, kChipEdge);
+        lt_instr = text(ib, 16, 14, "", &leota_inter_16, kInk, 412);
+        name("lt.instructions", lt_instr);
+        lt_msg = text(c, 24, 328, "", &leota_inter_14, kMuted, 444);
+        name("lt.message", lt_msg);
+        lt_weight = button(c, 24, 372, 212, 56, "", Kind::Plain);
+        name("lt.weight", lt_weight);
+        on_click(lt_weight, [this] {
+            open_number("Test weight", "What the weight hanging from the line weighs, from a scale.", "kg", 0.5, 30, 2,
+                        lt.weight_kg(), [this](double v) { lt.set_weight(v); });
+        });
+        lt_primary = button(c, 256, 372, 212, 56, "", Kind::Blue, &leota_inter_16_semi);
+        name("lt.primary", lt_primary);
+        on_click(lt_primary, [this] { line_test_primary(); });
+        lt_skip = button(c, 24, 438, 212, 56, "Finish here");
+        name("lt.skip", lt_skip);
+        on_click(lt_skip, [this] { lt.finish(); });
+        lt_close = button(c, 256, 438, 212, 56, "Cancel");
+        name("lt.close", lt_close);
+        on_click(lt_close, [this] {
+            lt.cancel(rig, now);
+            show(lt_dialog, false);
+        });
+
+        lv_obj_t* r = box(c, 496, 18, 472, 476, kCard, 12, kLine);
+        text(r, 18, 14, "The load cell reads now", &leota_inter_16, kMuted);
+        lt_live = text(r, 18, 40, "", &leota_inter_28_bold);
+        name("lt.live", lt_live);
+        lt_live_note = text(r, 18, 80, "", &leota_inter_14, kMuted, 436);
+        const char* heads[3] = {"", "Now", "Found"};
+        const int cx[3] = {18, 200, 330};
+        for (int i = 0; i < 3; ++i) text(r, cx[i], 130, heads[i], &leota_inter_14, kMuted);
+        const char* rows[3] = {"Load cell zero", "Load cell scale", "Drum"};
+        for (int i = 0; i < 3; ++i) {
+            text(r, 18, 158 + i * 36, rows[i], &leota_inter_16, kSoft);
+            lt_before[i] = text(r, 200, 158 + i * 36, "", &leota_inter_16_semi);
+            lt_found[i] = text(r, 330, 158 + i * 36, "", &leota_inter_16_semi);
+            name(std::string("lt.found.") + std::to_string(i), lt_found[i]);
+        }
+        text(r, 18, 290,
+             "The zero and scale take effect at once when saved. A new drum means homing again, and so does "
+             "raising the weight: hook the line back onto the ball first.",
+             &leota_inter_14, kMuted, 436);
+        show(lt_dialog, false);
+    }
+
+    void open_line_test(int line) {
+        const Result r = lt.start(rig, line);
+        if (!r) {
+            say(r.detail);
+            return;
+        }
+        show(lt_dialog, true);
+        refresh_line_test();
+    }
+
+    void line_test_primary() {
+        using S = LineTest::Step;
+        Result r;
+        switch (lt.step()) {
+            case S::Empty:
+            case S::Weight: r = lt.measure(rig, now); break;
+            case S::Raise: r = lt.raise(rig, now); break;
+            case S::Rise:
+                open_number("How far did it go up?",
+                            "From your mark to where the weight is now, to the nearest millimetre.", "mm", 1, 2000, 0,
+                            lt.move_mm, [this](double v) {
+                                const Result d = lt.rise(v);
+                                if (!d) say(d.detail);
+                            });
+                return;
+            case S::Done: use_line_test(); return;
+            case S::Off: return;
+        }
+        if (!r) say(r.detail);
+    }
+
+    void use_line_test() {
+        const char name[2] = {static_cast<char>('A' + lt.line()), 0};
+        const LineSensors& f = lt.result();
+        find_field(std::string("sensor.") + name + ".zero")->set(draft, std::round(f.load_zero * 100.0) / 100.0);
+        find_field(std::string("sensor.") + name + ".scale")->set(draft, std::round(f.load_scale * 1e4) / 1e4);
+        find_field(std::string("sensor.") + name + ".drum")->set(draft, std::round(f.drum * 1e4) / 1e4);
+        add_log(LogKind::Safety, std::string("Line test on line ") + name +
+                                     fmt(": zero %.2f N, scale %.4f, drum %.4f.", f.load_zero, f.load_scale, f.drum));
+        lt.cancel(rig, now);
+        show(lt_dialog, false);
+        group = 4;
+        fill_group();
+    }
+
+    void refresh_line_test() {
+        using S = LineTest::Step;
+        const S st = lt.step();
+        const char name[2] = {static_cast<char>('A' + lt.line()), 0};
+        const std::string L = name;
+        set(lt_title, "Test line " + L);
+        const int at = st == S::Empty ? 0 : st == S::Weight ? 1 : st == S::Off ? -1 : st == S::Done ? 3 : 2;
+        for (int i = 0; i < 3; ++i) {
+            set_color(lt_dot[i], i < at ? kGreen : i == at ? kBlue : kOff);
+            set_text_color(lt_step[i], i == at ? kInk : i < at ? kGreenInk : kMuted);
+        }
+        std::string instr, primary;
+        bool can = !lt.busy();
+        switch (st) {
+            case S::Empty:
+                instr = "Unhook line " + L + " from the ball and let it hang free, with nothing on it. When it's still, "
+                        "measure.";
+                primary = "Measure zero";
+                break;
+            case S::Weight:
+                instr = "Hang a weighed weight from line " + L +
+                        ": 2 to 10 kg, clear of the floor and still. Check its weight on the left, then measure.";
+                primary = "Measure weight";
+                break;
+            case S::Raise: {
+                instr = "Mark the bottom of the weight on something fixed beside it. The winch will raise it " +
+                        fmt("%.0f", lt.move_mm) + " mm on its own: keep hands clear of the line and pulley.";
+                const std::string why = !rig.armed() ? "Arm the rig first, at Controls."
+                                        : rig.remote() ? "Turn remote control off first, at Controls." : "";
+                if (!why.empty() && !lt.busy()) instr += " " + why;
+                can = can && why.empty();
+                primary = fmt("Raise %.0f mm", lt.move_mm);
+                break;
+            }
+            case S::Rise:
+                instr = "Measure how far the weight went up, from your mark to its bottom now.";
+                primary = "Enter the rise";
+                break;
+            case S::Done:
+                instr = "Done. Use these to put them in Sensors, then Save. Hook line " + L +
+                        " back onto the ball and home before flying.";
+                primary = "Use these";
+                break;
+            case S::Off: break;
+        }
+        if (lt.busy()) primary = st == S::Raise ? "Raising" "\xE2\x80\xA6" : "Measuring" "\xE2\x80\xA6";
+        set(lt_instr, instr);
+        set(lv_obj_get_child(lt_primary, 0), primary);
+        enable(lt_primary, can);
+        set(lt_msg, lt.message());
+        show(lt_weight, st == S::Weight);
+        set(lv_obj_get_child(lt_weight, 0), fmt("Weight: %.2f kg", lt.weight_kg()));
+        enable(lt_skip, !lt.busy() && (st == S::Weight || st == S::Raise || st == S::Rise));
+        set(lv_obj_get_child(lt_close, 0), st == S::Done ? "Close" : "Cancel");
+        const double raw = lt.reading(rig);
+        const LineSensors& now_ = rig.config().sensors[lt.line()];
+        set(lt_live, num(raw, 2) + " N");
+        set(lt_live_note, "as it reads; " + num((raw - now_.load_zero) * now_.load_scale, 2) +
+                              " N with the corrections in use now");
+        const LineSensors &b = lt.before(), &f = lt.result();
+        const double bv[3] = {b.load_zero, b.load_scale, b.drum}, fv[3] = {f.load_zero, f.load_scale, f.drum};
+        const bool found[3] = {at > 0, at > 1, st == S::Done && f.drum != b.drum};
+        for (int i = 0; i < 3; ++i) {
+            auto shown_ = [&](double v) { return i == 0 ? num(v, 2) + " N" : num(v, 4); };
+            set(lt_before[i], shown_(bv[i]));
+            set(lt_found[i], found[i] ? shown_(fv[i]) : std::string("\xE2\x80\x94"));
+            set_text_color(lt_found[i], found[i] && std::fabs(fv[i] - bv[i]) > (i == 0 ? 0.05 : 0.0005) ? kAmberSoft : kInk);
+        }
     }
 
     // -- Log -----------------------------------------------------------------------------
@@ -1819,6 +2088,8 @@ struct Ui::Impl {
             if (!cal.running()) show(cal_dialog, false);
         }
         if (!lv_obj_has_flag(cal_dialog, LV_OBJ_FLAG_HIDDEN)) refresh_calibration();
+        if (lt.step() != LineTest::Step::Off) lt.update(rig, now);
+        if (!lv_obj_has_flag(lt_dialog, LV_OBJ_FLAG_HIDDEN)) refresh_line_test();
         refresh_top();
         if (!estop) {
             switch (page) {

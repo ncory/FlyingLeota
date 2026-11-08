@@ -2,8 +2,10 @@
 // implements it for the real drives (step/dir closed-loop steppers, or ODrives over
 // CAN); plant.hpp implements it as a simulation for tests and the PC simulator.
 //
-// Positions are in mm of line, counted by each drive from wherever it started. More
-// line paid out is a larger number. Homing works out how they relate to real lengths.
+// Positions are in mm of line, counted by each drive from wherever it started, from the
+// drum's nominal size. More line paid out is a larger number. Tensions are newtons from
+// the load cell's data sheet. The rig corrects both with config().sensors (measured by
+// Setup's line test), and homing works out how positions relate to real lengths.
 #pragma once
 
 #include <array>

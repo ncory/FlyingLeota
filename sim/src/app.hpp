@@ -25,6 +25,7 @@ struct Options {
     int http_port = 8090;  // 0: no viewer
     bool two_axis = false;  // the starting setting, when none is stored
     std::string settings_file;  // keep Setup's settings here ("": until it stops)
+    bool sensor_error = false;  // drives and load cells read a little off, to try the line test
     double real_mass = 0.0;     // kg the head really weighs (0: as set), to try the calibration check
     double wind = 2.0;     // m/s
     double gusty = 0.3;    // 0 to 1: how much it varies

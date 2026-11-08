@@ -93,6 +93,8 @@ void SimApp::build() {
     truth_.lines[0].anchor += Vec3{opt_.pulley_error, -opt_.pulley_error, 0};
     if (opt_.real_mass > 0) truth_.mass = opt_.real_mass;
     plant_ = std::make_unique<Plant>(truth_);
+    if (opt_.sensor_error)  // drives and load cells that don't read quite true
+        plant_->set_sensors({{{1.015, 2.5, 0.96}, {0.99, -1.8, 1.03}, {1.02, 3.1, 0.98}, {0.985, -2.2, 1.05}}});
     rig_ = std::make_unique<Rig>(keeper_->settings().rig, *plant_);
     scmp_ = std::make_unique<ScmpServer>(*rig_, "flying-leota-sim 0.1.0");
     scmp_->on_config_set = [this] { keeper_->adopt(rig_->config()); };
@@ -232,6 +234,9 @@ std::string SimApp::state_json(double now) {
         o["real"] = std::round(real[i] * 10) / 10;
         o["cut"] = plant_->line_cut(i);
         o["alarm"] = plant_->alarm(i);
+        o["hung"] = plant_->hung(i);
+        o["hang_kg"] = plant_->hang_kg(i);
+        o["hang_height"] = std::round(plant_->hang_height(i) * 10) / 10;
         vec(o["anchor"].to<JsonObject>(), truth_.lines[i].anchor);
         vec(o["attach"].to<JsonObject>(), ball + rotate(rot, truth_.lines[i].attach));
     }
@@ -326,6 +331,17 @@ std::string SimApp::action(const std::string& body, double now) {
         if (i >= 0 && i < kLines) {
             plant_->set_alarm(i, on);
             said = std::string("Drive ") + truth_.lines[i].name + (on ? " alarm on" : " alarm cleared");
+        }
+    } else if (what == "hang" || what == "hook") {
+        const int i = in["line"] | 0;
+        if (i >= 0 && i < kLines) {
+            const double kg = in["kg"] | 0.0;
+            if (what == "hang") plant_->hang(i, kg);
+            else plant_->hook(i);
+            said = std::string("Line ") + truth_.lines[i].name +
+                   (what == "hook" ? " hooked back onto the ball"
+                                   : " unhooked" + (kg > 0 ? ", with " + std::to_string(kg).substr(0, 4) + " kg on it"
+                                                           : std::string(", hanging free")));
         }
     } else if (what == "noise") {
         plant_->tension_noise(in["n"] | 0.0);

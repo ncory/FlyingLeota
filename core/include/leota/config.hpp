@@ -34,6 +34,15 @@ struct Line {
     Vec3 attach;   // where it fixes to the ball, from the ball's centre
 };
 
+// Corrections for one line's drive and load cell. The drives report line in mm from
+// the drum's nominal size, and the load cells newtons from their data sheet; these
+// make both read true. Setup's line test measures them.
+struct LineSensors {
+    double drum = 1.0;        // real mm of line per mm the drive counts
+    double load_zero = 0.0;   // N the load cell reads with nothing pulling
+    double load_scale = 1.0;  // real N per N it reads above its zero
+};
+
 struct WindConfig {
     bool enabled = true;         // false: no wind sensor fitted (bench tests)
     double amber = 7.0;          // m/s: a gust at or above this is Amber
@@ -52,6 +61,7 @@ struct WindConfig {
 struct RigConfig {
     std::string name;
     std::array<Line, kLines> lines;  // A back left, B back right, C front left, D front right
+    std::array<LineSensors, kLines> sensors{};
     double ball_radius = 0.0;
     double mass = 0.0;               // kg: everything that flies
     Vec3 centre_of_weight;           // from the ball's centre; below it, so the ball hangs upright
