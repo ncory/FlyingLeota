@@ -90,6 +90,7 @@ struct RigConfig {
     double arm_timeout = 0.0;        // s for the drives to say they're ready
     double brake_time = 0.0;         // s for a brake to grip or release
     double heartbeat_timeout = 0.0;  // s
+    bool remote_arm = true;          // Show Controller may arm the rig (else only the screen)
     double jog_hold = 0.0;           // s a jog lasts without a repeat
     double park_speed = 0.0;         // mm/s when parking
     double park_sink = 0.0;          // mm below the dock height when setting down

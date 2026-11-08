@@ -35,11 +35,13 @@ whole rig), then fly.
 | `--port N` | SCMP UDP port (default 7720; 0 picks a free one) |
 | `--http N` | Viewer port (default 8090; 0 picks one; -1 for none) |
 | `--host ADDR` | Address to listen on (default all) |
-| `--two-axis` | Fly in a fixed depth plane: no `y` axis |
+| `--two-axis` | Fly in a fixed depth plane: no `y` axis (unless the settings file says otherwise) |
+| `--settings FILE` | Keep the touchscreen's Setup settings in FILE, as the controller keeps them in flash. Without it they last until the simulator stops. |
 | `--wind M/S` | Starting wind speed (default 2) |
 | `--gusty 0..1` | How much the wind varies (default 0.3) |
 | `--no-push` | The wind doesn't push the ball |
 | `--pulley-error MM` | Pulley A is really this far off in x and y, to try calibration errors |
+| `--real-mass KG` | The head really weighs this (default: what the settings say, 4 kg) |
 
 ## What's simulated
 
@@ -50,6 +52,13 @@ whole rig), then fly.
 - **Wind:** a speed that wanders around the set value. It feeds the wind sensor twice a
   second, and pushes on the ball from the open front (toward +y) with the drag of a 14 in
   sphere.
+
+**Trying the calibration check:** start with `--pulley-error 80 --real-mass 4.6`. On the
+touchscreen: arm, home, turn remote off, then Setup (PIN 1234), Measurements, Check by
+flying. It finds pulley A about 110 mm from where the settings say, and a 4.6 kg head. Use
+these, Save, arm and home again, and fly: the ball lands where it's sent. The simulator's
+rig stays as built; only what the controller believes changes. Settings changes over
+SCMP (`config` with `set`) are kept too.
 
 ## The viewer
 

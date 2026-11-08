@@ -25,6 +25,8 @@ Needs CMake 3.16 or later and a C++17 compiler. The tests take under a second.
 | `wind.hpp` | Gusts, averages, the Green, Amber and Red levels, and the Red hold. |
 | `hardware.hpp` | What the controller needs from the hardware. The firmware implements it. |
 | `rig.hpp` | The controller: states, arming, homing, flying, tension checks, faults, remote and local, wind, parking. |
+| `settings.hpp` | What a person may change on site, as one table of fields with labels, units and ranges; checks; JSON for flash; `SettingsKeeper` applies changes to the rig and stores them through a `SettingsStore` (NVS on the board, a file in the simulator). |
+| `calibration.hpp` | The calibration check: points to fly to, `CalibrationRun` to fly and measure them, and `fit_calibration()`, which finds the pulley positions and head weight that agree with what was measured. |
 | `scmp.hpp` | SCMP version 1 with its Optional fields: messages in, acks and status out. No transport. |
 | `plant.hpp` | A simulated rig for tests and the PC simulator. Not used by the firmware. |
 
@@ -73,6 +75,15 @@ up most pulley-position error. With a pulley 120 mm sideways and 80 mm low, the 
 within about 15 mm and the tensions are within about 5 N. Errors of a few centimetres cost a
 millimetre or two.
 
+The calibration check finds what homing can't. Each point it flies to gives four line
+lengths (counted from homing) and four tensions; with the ball hanging still, the tensions
+must balance its weight and the lengths must reach the pulleys. Levenberg–Marquardt fits
+the 12 pulley coordinates, the weight, and each point's centre and lean together, with the
+tape measurements as a loose prior (300 mm). The prior matters for one thing only: turning
+all four pulleys together about the dock changes nothing measurable. Tests: B 50 mm low and
+C 36 mm off take the worst landing from 11 mm to under 0.5 mm; a 0.8 kg heavier head is
+weighed to 1%; 0.3 N of load-cell noise still finds a 85 mm error to within 15 mm.
+
 ## On the ESP32-P4
 
 On this PC a control cycle's geometry takes about 0.3 µs, or 4 µs on a cycle that re-solves
@@ -84,7 +95,9 @@ Phase 1. If it's tight, re-solve the lean less often (`lean_every`), or switch t
 ## Not yet
 
 - The SCMP proposed multi-axis `move`. Separate moves with the same duration do the job.
-- Per-rig settings in flash, and SCMP `config` keys beyond the axis limits.
+- SCMP `config` keys beyond the axis limits. (Settings do persist: the touchscreen's
+  Setup changes them all, and limits set over SCMP are kept with them.)
+- Writing settings to NVS: the firmware's `SettingsStore`.
 
 ## Third-party code
 

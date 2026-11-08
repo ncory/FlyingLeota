@@ -5,6 +5,7 @@
 #pragma once
 
 #include <array>
+#include <functional>
 #include <cstdint>
 #include <string>
 #include <string_view>
@@ -32,6 +33,10 @@ public:
     // The type ("t") of the last message handled, so a transport can tell where to send
     // status: to whoever last sent a hello or a heartbeat.
     const std::string& last_type() const { return last_type_; }
+
+    // Called after a `config` with `set` changes the rig, so the host can keep the new
+    // values (SCMP says calibration lives in the controller's flash).
+    std::function<void()> on_config_set;
 
 private:
     struct Answer { bool used = false; long long seq = 0; std::string ack; };

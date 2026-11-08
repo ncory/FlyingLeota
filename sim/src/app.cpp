@@ -3,6 +3,8 @@
 #include <cmath>
 #include <cstdio>
 #include <ctime>
+#include <fstream>
+#include <sstream>
 
 #include "ArduinoJson.h"
 #include "web_page.hpp"
@@ -45,26 +47,60 @@ void vec(JsonObject o, const Vec3& v) {
 
 const char* refusal_text(const Result& r) { return r ? "ok" : r.detail.c_str(); }
 
+// Settings in a file, written whole and renamed into place.
+class FileStore : public SettingsStore {
+public:
+    explicit FileStore(std::string path) : path_(std::move(path)) {}
+    bool read(std::string& out) override {
+        std::ifstream f(path_);
+        if (!f) return false;
+        std::stringstream ss;
+        ss << f.rdbuf();
+        out = ss.str();
+        return true;
+    }
+    bool write(const std::string& json) override {
+        const std::string tmp = path_ + ".tmp";
+        {
+            std::ofstream f(tmp, std::ios::trunc);
+            if (!(f << json)) return false;
+        }
+        return std::rename(tmp.c_str(), path_.c_str()) == 0;
+    }
+
+private:
+    std::string path_;
+};
+
 }  // namespace
 
-SimApp::SimApp(const Options& opt) : opt_(opt) { build(); }
+SimApp::SimApp(const Options& opt) : opt_(opt) {
+    RigConfig defaults = gazebo_config();
+    defaults.two_axis = opt_.two_axis;
+    defaults.fixed_y = defaults.dock.y;
+    if (!opt_.settings_file.empty()) store_ = std::make_unique<FileStore>(opt_.settings_file);
+    keeper_ = std::make_unique<SettingsKeeper>(settings_for(defaults), store_.get());
+    const std::string said = keeper_->load();
+    if (!said.empty()) std::fprintf(stderr, "Settings in %s:\n%s", opt_.settings_file.c_str(), said.c_str());
+    build();
+}
 
 void SimApp::build() {
 #ifdef LEOTA_SIM_UI
     ui_.reset();  // it holds the old rig
 #endif
-    cfg_ = gazebo_config();
-    cfg_.two_axis = opt_.two_axis;
-    truth_ = cfg_;
+    truth_ = gazebo_config();
     truth_.lines[0].anchor += Vec3{opt_.pulley_error, -opt_.pulley_error, 0};
+    if (opt_.real_mass > 0) truth_.mass = opt_.real_mass;
     plant_ = std::make_unique<Plant>(truth_);
-    rig_ = std::make_unique<Rig>(cfg_, *plant_);
+    rig_ = std::make_unique<Rig>(keeper_->settings().rig, *plant_);
     scmp_ = std::make_unique<ScmpServer>(*rig_, "flying-leota-sim 0.1.0");
+    scmp_->on_config_set = [this] { keeper_->adopt(rig_->config()); };
     snag_ = 0.0;
     last_message_.clear();
 #ifdef LEOTA_SIM_UI
     if (!screen_) screen_ = std::make_unique<Screen>();
-    ui_ = std::make_unique<Ui>(*rig_, screen_->display());
+    ui_ = std::make_unique<Ui>(*rig_, screen_->display(), keeper_.get());
 #endif
 }
 
@@ -124,7 +160,7 @@ std::string SimApp::step(double now) {
     }
     // The wind blows in through the open front (toward +y) and pushes on the ball.
     const double v = opt_.push ? wind_now(now) : 0.0;
-    const double area = kPi * cfg_.ball_radius * cfg_.ball_radius / 1e6;
+    const double area = kPi * truth_.ball_radius * truth_.ball_radius / 1e6;
     plant_->push({0.0, 0.5 * 1.2 * v * v * 0.47 * area - snag_, 0.0});
     rig_->update(now);
     if (rig_->message() != last_message_) {
@@ -217,18 +253,19 @@ std::string SimApp::state_json(double now) {
     sc["scmp_port"] = opt_.scmp_port;
     d["snag"] = snag_;
     JsonObject c = d["config"].to<JsonObject>();
-    c["ball_radius"] = cfg_.ball_radius;
-    vec(c["dock"].to<JsonObject>(), cfg_.dock);
+    const RigConfig& cfg = r.config();
+    c["ball_radius"] = truth_.ball_radius;
+    vec(c["dock"].to<JsonObject>(), truth_.dock);
     JsonObject table = c["table"].to<JsonObject>();
-    vec(table["lo"].to<JsonObject>(), cfg_.table.lo);
-    vec(table["hi"].to<JsonObject>(), cfg_.table.hi);
-    const Box ws = workspace(cfg_);
+    vec(table["lo"].to<JsonObject>(), truth_.table.lo);
+    vec(table["hi"].to<JsonObject>(), truth_.table.hi);
+    const Box ws = workspace(cfg);
     JsonObject box = c["workspace"].to<JsonObject>();
     vec(box["lo"].to<JsonObject>(), ws.lo);
     vec(box["hi"].to<JsonObject>(), ws.hi);
-    c["two_axis"] = cfg_.two_axis;
-    c["tension_max"] = cfg_.tension_max;
-    c["tension_min"] = cfg_.tension_min;
+    c["two_axis"] = cfg.two_axis;
+    c["tension_max"] = cfg.tension_max;
+    c["tension_min"] = cfg.tension_min;
 #ifdef LEOTA_SIM_UI
     c["touchscreen"] = true;
 #endif
@@ -281,14 +318,14 @@ std::string SimApp::action(const std::string& body, double now) {
         const int i = in["line"] | 0;
         if (i >= 0 && i < kLines) {
             what == "cut" ? plant_->cut_line(i) : plant_->mend_line(i);
-            said = std::string(what == "cut" ? "Line " : "Mended line ") + cfg_.lines[i].name + (what == "cut" ? " cut" : "");
+            said = std::string(what == "cut" ? "Line " : "Mended line ") + truth_.lines[i].name + (what == "cut" ? " cut" : "");
         }
     } else if (what == "alarm") {
         const int i = in["line"] | 0;
         const bool on = in["on"] | true;
         if (i >= 0 && i < kLines) {
             plant_->set_alarm(i, on);
-            said = std::string("Drive ") + cfg_.lines[i].name + (on ? " alarm on" : " alarm cleared");
+            said = std::string("Drive ") + truth_.lines[i].name + (on ? " alarm on" : " alarm cleared");
         }
     } else if (what == "noise") {
         plant_->tension_noise(in["n"] | 0.0);

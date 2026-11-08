@@ -30,11 +30,13 @@ void usage() {
         "  --host ADDR        address to listen on (default 0.0.0.0)\n"
         "  --port N           SCMP UDP port (default 7720; 0 picks one)\n"
         "  --http N           viewer HTTP port (default 8090; 0 picks one; -1 for none)\n"
-        "  --two-axis         fly in a fixed depth plane\n"
+        "  --two-axis         fly in a fixed depth plane (unless the settings file says otherwise)\n"
+        "  --settings FILE    keep the touchscreen's Setup settings in FILE\n"
         "  --wind M/S         starting wind speed (default 2)\n"
         "  --gusty 0..1       how much the wind varies (default 0.3)\n"
         "  --no-push          the wind doesn't push the ball\n"
-        "  --pulley-error MM  pulley A is really this far off in x and y (default 0)\n");
+        "  --pulley-error MM  pulley A is really this far off in x and y (default 0)\n"
+        "  --real-mass KG     the head really weighs this (default: as set, 4 kg)\n");
 }
 
 }  // namespace
@@ -58,6 +60,8 @@ int main(int argc, char** argv) {
         else if (a == "--gusty") opt.gusty = std::atof(next());
         else if (a == "--no-push") opt.push = false;
         else if (a == "--pulley-error") opt.pulley_error = std::atof(next());
+        else if (a == "--settings") opt.settings_file = next();
+        else if (a == "--real-mass") opt.real_mass = std::atof(next());
         else if (a == "-h" || a == "--help") { usage(); return 0; }
         else {
             std::fprintf(stderr, "unknown option %s\n", a.c_str());

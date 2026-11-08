@@ -9,10 +9,13 @@
 #include <cmath>
 #include <cstdarg>
 #include <cstdio>
+#include <cstdlib>
 #include <deque>
 #include <functional>
 #include <map>
 #include <vector>
+
+#include "leota/calibration.hpp"
 
 extern "C" {
 LV_FONT_DECLARE(leota_inter_14)
@@ -56,6 +59,11 @@ std::string mm(double v) {
         out += digits[i];
     }
     return (n < 0 ? std::string(kMinus) : std::string()) + out;
+}
+
+std::string lower_first(std::string s) {
+    if (!s.empty() && s[0] >= 'A' && s[0] <= 'Z' && !(s.size() > 1 && s[1] >= 'A' && s[1] <= 'Z')) s[0] = static_cast<char>(s[0] - 'A' + 'a');
+    return s;
 }
 
 std::string signed_mm(double v) { return (std::lround(v) > 0 ? "+" : "") + mm(v); }
@@ -119,13 +127,16 @@ lv_obj_t* button(lv_obj_t* parent, int x, int y, int w, int h, const char* t, Ki
     lv_obj_set_style_bg_color(b, hex(bg), 0);
     lv_obj_set_style_border_width(b, edge ? 1 : 0, 0);
     lv_obj_set_style_border_color(b, hex(edge), 0);
-    lv_obj_set_style_bg_color(b, hex(0x151B24), LV_STATE_DISABLED);
-    lv_obj_set_style_text_color(b, hex(kOff), LV_STATE_DISABLED);
+    lv_obj_set_style_text_color(b, hex(fg), 0);  // the label takes its colour from the button
+    // Disabled: dark, outlined, grey text, whatever the kind. (Without the filter setting,
+    // the theme washes it pale grey, which looks more pressable, not less.)
+    lv_obj_set_style_color_filter_opa(b, LV_OPA_TRANSP, LV_STATE_DISABLED);
+    lv_obj_set_style_bg_color(b, hex(0x10151C), LV_STATE_DISABLED);
+    lv_obj_set_style_border_width(b, 1, LV_STATE_DISABLED);
     lv_obj_set_style_border_color(b, hex(kChipEdge), LV_STATE_DISABLED);
+    lv_obj_set_style_text_color(b, hex(0x5E6878), LV_STATE_DISABLED);
     lv_obj_t* l = lv_label_create(b);
     lv_obj_set_style_text_font(l, font, 0);
-    lv_obj_set_style_text_color(l, hex(fg), 0);
-    lv_obj_set_style_text_color(l, hex(kOff), LV_STATE_DISABLED);
     lv_label_set_text(l, t);
     lv_obj_center(l);
     return b;
@@ -237,7 +248,6 @@ struct MapView {
 struct Ui::Impl {
     Rig& rig;
     lv_display_t* disp;
-    std::string pin;
     double now = 0.0;
     UiLink link;
     std::string clock;
@@ -293,8 +303,33 @@ struct Ui::Impl {
     std::array<lv_obj_t*, 6> safety_value{}, sensor_value{}, net_value{};
 
     // Setup
+    SettingsKeeper* keeper = nullptr;
+    std::unique_ptr<SettingsKeeper> own_keeper;
+    Settings draft, base;  // being edited; and as it was when editing began
+    int seen_revision = -1;
     lv_obj_t *locked = nullptr, *unlocked = nullptr, *pin_dots = nullptr;
     std::string entered;
+    int group = 0;
+    std::vector<lv_obj_t*> group_buttons;
+    lv_obj_t *set_title = nullptr, *set_status = nullptr, *set_save = nullptr, *set_undo = nullptr, *set_rows = nullptr;
+    std::vector<std::unique_ptr<std::function<void()>>> row_actions;
+
+    // The number pad
+    enum class EditMode { Field, PinNew, PinAgain };
+    lv_obj_t *editor = nullptr, *ed_title = nullptr, *ed_help = nullptr, *ed_value = nullptr, *ed_note = nullptr;
+    std::map<std::string, lv_obj_t*> ed_keys;
+    const Field* ed_field = nullptr;
+    EditMode ed_mode = EditMode::Field;
+    std::string ed_text, ed_pin;
+    bool ed_fresh = true;
+
+    // The calibration check
+    CalibrationRun cal;
+    CalibrationRun::Phase cal_seen = CalibrationRun::Phase::Off;
+    lv_obj_t *cal_dialog = nullptr, *cal_ready = nullptr, *cal_ready_dot = nullptr, *cal_bar = nullptr,
+             *cal_msg = nullptr, *cal_start = nullptr, *cal_stop = nullptr, *cal_use = nullptr, *cal_close = nullptr,
+             *cal_summary = nullptr;
+    std::array<lv_obj_t*, 5> cal_found{}, cal_off{};
 
     // Log
     struct Entry { LogKind kind; std::string clock, text; };
@@ -310,7 +345,14 @@ struct Ui::Impl {
     lv_obj_t *toast = nullptr, *toast_text = nullptr;
     double toast_until = 0.0;
 
-    Impl(Rig& r, lv_display_t* d, std::string p) : rig(r), disp(d), pin(std::move(p)) {}
+    Impl(Rig& r, lv_display_t* d, SettingsKeeper* k) : rig(r), disp(d), keeper(k) {
+        if (!keeper) {
+            own_keeper = std::make_unique<SettingsKeeper>(settings_for(rig.config()));
+            keeper = own_keeper.get();
+        }
+        draft = base = keeper->settings();
+        seen_revision = keeper->revision();
+    }
     ~Impl() {
         // The widgets' callbacks point into this object: take the widgets away first.
         lv_obj_clean(lv_display_get_layer_top(disp));
@@ -679,7 +721,7 @@ struct Ui::Impl {
                             : "Turns the drives on, waits for them to hold, then releases the brakes. Asks you to confirm first.");
         set(lv_obj_get_child(arm_btn, 0), armed ? "DISARM" : "ARM\xE2\x80\xA6");
         set_color(arm_btn, armed ? kGrey : kAmber);
-        set_text_color(lv_obj_get_child(arm_btn, 0), armed ? 0xFFFFFF : kAmberInk);
+        set_text_color(arm_btn, armed ? 0xFFFFFF : kAmberInk);
         const bool idle = rig.state() == RigState::Idle;
         enable(home_btn, armed && idle);
         set(home_text, std::string("Reels the lines in at the dock until tight, then lifts 30 mm and checks. ") +
@@ -1104,10 +1146,15 @@ struct Ui::Impl {
     }
 
     // -- Setup ---------------------------------------------------------------------------
+    // Behind a PIN. Changes go into a draft; Save checks them, gives them to the rig and
+    // stores them. Numbers are typed on a keypad; Measurements also has the calibration check.
+    static constexpr int kGroups = 6;
+    const char* group_names[kGroups] = {"Flight", "Lines and safety", "Wind", "Measurements", "Network", "PIN"};
+
     void build_setup(lv_obj_t* p) {
         locked = box(p, 0, 0, kW, kBody, kBg);
         text(locked, 120, 120, "Setup is locked", &leota_inter_28_bold);
-        text(locked, 120, 168, "These settings change how the rig flies and when it stops. Enter the PIN to see them.",
+        text(locked, 120, 168, "These settings change how the rig flies and when it stops. Enter the PIN to change them.",
              &leota_inter_16, kMuted, 360);
         pin_dots = text(locked, 120, 250, "", &leota_inter_28_bold, kBlue);
         const char* keys[12] = {"1", "2", "3", "4", "5", "6", "7", "8", "9", "Clear", "0", "Back"};
@@ -1117,21 +1164,59 @@ struct Ui::Impl {
             name(std::string("setup.key.") + keys[i], b);
             on_click(b, [this, i] { key(i); });
         }
+
         unlocked = box(p, 0, 0, kW, kBody, kBg);
+        for (int g = 0; g < kGroups; ++g) {
+            lv_obj_t* b = button(unlocked, 16, 14 + g * 60, 200, 52, group_names[g]);
+            name("setup.group." + std::to_string(g), b);
+            group_buttons.push_back(b);
+            on_click(b, [this, g] {
+                group = g;
+                fill_group();
+            });
+        }
+        lv_obj_t* lock = button(unlocked, 16, 394, 200, 52, "Lock");
+        name("setup.lock", lock);
+        on_click(lock, [this] {
+            draft = keeper->settings();
+            show(unlocked, false);
+            show(locked, true);
+        });
+        lv_obj_t* c = card(unlocked, 232, 14, 776, 432);
+        set_title = text(c, 20, 14, "", &leota_inter_20_bold);
+        set_status = text(c, 20, 44, "", &leota_inter_14, kMuted);
+        name("setup.status", set_status);
+        lv_obj_set_width(set_status, 420);
+        lv_label_set_long_mode(set_status, LV_LABEL_LONG_DOT);
+        set_undo = button(c, 464, 12, 140, 48, "Undo changes");
+        name("setup.undo", set_undo);
+        on_click(set_undo, [this] {
+            draft = keeper->settings();
+            fill_group();
+        });
+        set_save = button(c, 616, 12, 140, 48, "Save", Kind::Amber);
+        name("setup.save", set_save);
+        on_click(set_save, [this] { save_settings(); });
+        set_rows = box(c, 0, 70, 776, 360, kCard);
         show(unlocked, false);
+        build_editor();
+        build_calibration();
     }
 
     void key(int i) {
         static const char digits[12] = {'1', '2', '3', '4', '5', '6', '7', '8', '9', 'C', '0', 'B'};
+        const std::string& pin = keeper->settings().pin;
         const char k = digits[i];
         if (k == 'C') entered.clear();
         else if (k == 'B') { if (!entered.empty()) entered.pop_back(); }
         else if (entered.size() < pin.size()) entered += k;
         if (entered.size() == pin.size()) {
             if (entered == pin) {
-                fill_settings();
+                draft = base = keeper->settings();
+                seen_revision = keeper->revision();
                 show(locked, false);
                 show(unlocked, true);
+                fill_group();
             } else {
                 say("That PIN isn't right.");
             }
@@ -1142,42 +1227,463 @@ struct Ui::Impl {
         set(pin_dots, dots);
     }
 
-    void fill_settings() {
-        lv_obj_clean(unlocked);
-        const RigConfig& c = rig.config();
-        text(unlocked, 16, 18, (std::string("Flight mode: ") + (c.two_axis ? "2 axes, depth fixed" : "3 axes")).c_str(),
-             &leota_inter_20_bold);
-        text(unlocked, 16, 48, "Changing settings here comes with settings stored in flash. For now they come from the config.",
-             &leota_inter_14, kMuted, 700);
-        lv_obj_t* lock = button(unlocked, 868, 14, 140, 52, "Lock");
-        name("setup.lock", lock);
-        on_click(lock, [this] {
-            show(unlocked, false);
-            show(locked, true);
-        });
-        auto range = [](const AxisLimits& a) { return mm(a.min) + " to " + mm(a.max) + " mm"; };
-        const std::vector<std::pair<std::string, std::vector<std::pair<std::string, std::string>>>> groups = {
-            {"Flight", {{"Workspace x", range(c.axes[0])}, {"Workspace y", c.two_axis ? "fixed " + mm(c.fixed_y) : range(c.axes[1])},
-                        {"Workspace z", range(c.axes[2])}, {"Top speed", fmt("%.0f mm/s", c.axes[2].max_velocity)},
-                        {"Acceleration", fmt("%.0f mm/s\xC2\xB2", c.axes[2].max_accel)}, {"Smoothing", fmt("%.2f s", c.smoothing)}}},
-            {"Lines and safety", {{"Slack below", fmt("%.0f N", c.tension_min)}, {"Overload above", fmt("%.0f N", c.tension_max)},
-                                  {"Plans keep lines over", fmt("%.0f N", c.plan_tension_min)},
-                                  {"Mismatch fault", fmt("%.0f N for %.1f s", c.mismatch_limit, c.mismatch_time)},
-                                  {"Heartbeat timeout", fmt("%.1f s", c.heartbeat_timeout)}, {"Head weight", fmt("%.1f kg", c.mass)}}},
-            {"Wind", {{"Amber at gust", fmt("%.1f m/s", c.wind.amber)}, {"Red at gust", fmt("%.1f m/s", c.wind.red)},
-                      {"Green again after", fmt("%.0f min", c.wind.hold / 60)}, {"Swing alarm", fmt("\xC2\xB1%.1f N", c.wind.swing_red)},
-                      {"Sensor missing after", fmt("%.0f s", c.wind.sensor_timeout)}, {"Amber speed", fmt("%.0f%%", c.wind.amber_speed * 100)}}}};
-        for (size_t g = 0; g < groups.size(); ++g) {
-            lv_obj_t* col = card(unlocked, 16 + static_cast<int>(g) * 335, 80, 322, 366);
-            text(col, 14, 10, groups[g].first.c_str(), &leota_inter_20_bold);
-            for (size_t r = 0; r < groups[g].second.size(); ++r) {
-                lv_obj_t* row = box(col, 10, 44 + static_cast<int>(r) * 52, 302, 46, kChip, 8);
-                text(row, 10, 14, groups[g].second[r].first.c_str(), &leota_inter_14, kMuted);
-                lv_obj_t* v = text(row, 140, 13, groups[g].second[r].second.c_str(), &leota_inter_16_semi);
-                lv_obj_set_width(v, 152);
-                lv_obj_set_style_text_align(v, LV_TEXT_ALIGN_RIGHT, 0);
+    bool changed(const Field& f) const { return field_text(f, draft) != field_text(f, keeper->settings()); }
+
+    // Rebuilds the open group from the draft.
+    void fill_group() {
+        for (auto it = named.begin(); it != named.end();) {
+            const bool row = it->first.rfind("setup.field.", 0) == 0 || it->first == "setup.calibrate";
+            it = row ? named.erase(it) : std::next(it);
+        }
+        lv_obj_clean(set_rows);
+        row_actions.clear();  // their widgets are gone
+        for (int g = 0; g < kGroups; ++g) {
+            set_color(group_buttons[g], g == group ? kBlueBg : kRaised);
+            lv_obj_set_style_border_color(group_buttons[g], hex(g == group ? kBlue : kEdge), 0);
+        }
+        set(set_title, group_names[group]);
+        if (group == 3) build_measurements();
+        else if (group == 5) build_pin();
+        else build_list(group_names[group]);
+        refresh_setup();
+    }
+
+    void click_row(lv_obj_t* o, Action a) {
+        row_actions.push_back(std::make_unique<Action>(std::move(a)));
+        lv_obj_add_event_cb(o, [](lv_event_t* e) { (*static_cast<Action*>(lv_event_get_user_data(e)))(); },
+                            LV_EVENT_CLICKED, row_actions.back().get());
+    }
+
+    void tap_field(const Field& f) {
+        if (f.kind == Field::Kind::Toggle) {
+            f.set(draft, f.get(draft) != 0 ? 0.0 : 1.0);
+            fill_group();
+        } else {
+            open_editor(&f);
+        }
+    }
+
+    void build_list(const char* g) {
+        lv_obj_t* list = box(set_rows, 0, 0, 776, 360, kCard);
+        lv_obj_add_flag(list, LV_OBJ_FLAG_SCROLLABLE);
+        lv_obj_set_scroll_dir(list, LV_DIR_VER);
+        lv_obj_set_flex_flow(list, LV_FLEX_FLOW_COLUMN);
+        lv_obj_set_style_pad_left(list, 20, 0);
+        lv_obj_set_style_pad_bottom(list, 12, 0);
+        lv_obj_set_style_pad_row(list, 6, 0);
+        lv_obj_set_scrollbar_mode(list, LV_SCROLLBAR_MODE_AUTO);
+        lv_obj_set_style_width(list, 4, LV_PART_SCROLLBAR);
+        lv_obj_set_style_pad_right(list, 4, LV_PART_SCROLLBAR);
+        lv_obj_set_style_radius(list, 2, LV_PART_SCROLLBAR);
+        lv_obj_set_style_bg_color(list, hex(kEdge), LV_PART_SCROLLBAR);
+        lv_obj_set_style_bg_opa(list, LV_OPA_COVER, LV_PART_SCROLLBAR);
+        for (const Field& f : settings_fields()) {
+            if (std::string(f.group) != g || (f.shown && !f.shown(draft))) continue;
+            const bool ch = changed(f);
+            lv_obj_t* r = box(list, 0, 0, 736, 50, kChip, 8, ch ? kAmber : kChipEdge);
+            lv_obj_set_style_bg_color(r, hex(kRaised), LV_STATE_PRESSED);
+            text(r, 14, 15, f.label, &leota_inter_16, kSoft);
+            const bool toggle = f.kind == Field::Kind::Toggle;
+            uint32_t col = ch ? kAmberSoft : kInk;
+            if (toggle && !ch) col = f.get(draft) != 0 ? kGreenInk : kMuted;
+            lv_obj_t* v = text(r, 330, 14, field_text(f, draft).c_str(), &leota_inter_16_semi, col);
+            lv_obj_set_width(v, 340);
+            lv_obj_set_style_text_align(v, LV_TEXT_ALIGN_RIGHT, 0);
+            text(r, 694, 15, toggle ? "" : LV_SYMBOL_RIGHT, &leota_inter_16_semi, kMuted);
+            name(std::string("setup.field.") + f.key, r);
+            click_row(r, [this, &f] { tap_field(f); });
+        }
+        if (std::string(g) == "Network")
+            text(list, 0, 0, "Address changes take effect when the controller restarts.", &leota_inter_14, kMuted);
+    }
+
+    void build_measurements() {
+        lv_obj_t* m = box(set_rows, 0, 0, 776, 360, kCard);
+        const char* heads[3] = {"Across (x)", "Depth (y)", "Height (z)"};
+        for (int c = 0; c < 3; ++c) {
+            lv_obj_t* h = text(m, 190 + c * 162, 4, heads[c], &leota_inter_14, kMuted);
+            lv_obj_set_width(h, 150);
+            lv_obj_set_style_text_align(h, LV_TEXT_ALIGN_CENTER, 0);
+        }
+        auto cell = [&](int x, int y, int w, const char* key) {
+            const Field& f = *find_field(key);
+            const bool ch = changed(f);
+            lv_obj_t* b = box(m, x, y, w, 44, kChip, 8, ch ? kAmber : kChipEdge);
+            lv_obj_set_style_bg_color(b, hex(kRaised), LV_STATE_PRESSED);
+            const double v = f.get(draft);
+            const std::string t = std::string(f.unit) == "mm" ? mm(v) : field_text(f, draft);
+            lv_obj_t* l = text(b, 0, 12, t.c_str(), &leota_inter_16_semi, ch ? kAmberSoft : kInk);
+            lv_obj_set_width(l, w);
+            lv_obj_set_style_text_align(l, LV_TEXT_ALIGN_CENTER, 0);
+            name(std::string("setup.field.") + key, b);
+            click_row(b, [this, &f] { tap_field(f); });
+        };
+        const char* rows[5] = {"Pulley A", "Pulley B", "Pulley C", "Pulley D", "Dock (top)"};
+        const char* keys[5][3] = {{"pulley.A.x", "pulley.A.y", "pulley.A.z"}, {"pulley.B.x", "pulley.B.y", "pulley.B.z"},
+                                  {"pulley.C.x", "pulley.C.y", "pulley.C.z"}, {"pulley.D.x", "pulley.D.y", "pulley.D.z"},
+                                  {"dock.x", "dock.y", "dock.height"}};
+        for (int r = 0; r < 5; ++r) {
+            text(m, 20, 38 + r * 52, rows[r], &leota_inter_16, kSoft);
+            for (int c = 0; c < 3; ++c) cell(190 + c * 162, 26 + r * 52, 150, keys[r][c]);
+        }
+        text(m, 20, 304, "Head weight", &leota_inter_16, kSoft);
+        cell(190, 292, 150, "mass");
+        lv_obj_t* check = button(m, 352, 292, 404, 44, "Check by flying" "\xE2\x80\xA6", Kind::Blue);
+        name("setup.calibrate", check);
+        click_row(check, [this] { open_calibration(); });
+    }
+
+    void build_pin() {
+        lv_obj_t* m = box(set_rows, 0, 0, 776, 360, kCard);
+        text(m, 20, 6, "The PIN unlocks this screen. Choose 4 to 8 digits, and tell the people who need it.",
+             &leota_inter_16, kSoft, 700);
+        lv_obj_t* r = box(m, 20, 70, 736, 50, kChip, 8, draft.pin != keeper->settings().pin ? kAmber : kChipEdge);
+        lv_obj_set_style_bg_color(r, hex(kRaised), LV_STATE_PRESSED);
+        text(r, 14, 15, "PIN", &leota_inter_16, kSoft);
+        std::string dots;
+        for (size_t i = 0; i < draft.pin.size(); ++i) dots += "\xE2\x80\xA2";
+        lv_obj_t* v = text(r, 330, 14, (dots + "   Change").c_str(), &leota_inter_16_semi);
+        lv_obj_set_width(v, 340);
+        lv_obj_set_style_text_align(v, LV_TEXT_ALIGN_RIGHT, 0);
+        text(r, 694, 15, LV_SYMBOL_RIGHT, &leota_inter_16_semi, kMuted);
+        name("setup.field.pin", r);
+        click_row(r, [this] { open_pin_editor(); });
+    }
+
+    void refresh_setup() {
+        if (lv_obj_has_flag(unlocked, LV_OBJ_FLAG_HIDDEN)) return;
+        if (keeper->revision() != seen_revision) {
+            // Changed elsewhere (SCMP set new limits): take it, unless there are edits here.
+            seen_revision = keeper->revision();
+            if (settings_changes(base, draft).empty()) {
+                draft = keeper->settings();
+                base = draft;
+                fill_group();
+                return;
             }
         }
+        const auto changes = settings_changes(keeper->settings(), draft);
+        const bool dirty = !changes.empty();
+        std::string s;
+        if (dirty) {
+            s = changes.size() == 1 ? "1 change not saved." : fmt("%d changes not saved.", static_cast<int>(changes.size()));
+            Settings live = keeper->settings();
+            live.net = draft.net;
+            live.pin = draft.pin;
+            if (rig.armed() && !settings_changes(live, draft).empty()) s += " Disarm to save.";
+        } else if (!keeper->has_store()) {
+            s = "Saved until the controller restarts.";
+        } else {
+            s = keeper->stored_ok() ? "Saved. Kept in the controller's flash." : "Not stored: changes last until a restart.";
+        }
+        set(set_status, s);
+        set_text_color(set_status, dirty ? kAmberSoft : kMuted);
+        enable(set_save, dirty);
+        enable(set_undo, dirty);
+    }
+
+    void save_settings() {
+        const auto changes = settings_changes(keeper->settings(), draft);
+        if (changes.empty()) return;
+        const Result r = keeper->change(draft, rig);
+        if (!r) {
+            say(r.detail);
+            return;
+        }
+        if (changes.size() <= 4) {
+            for (const std::string& c : changes) add_log(LogKind::Safety, "Setup: " + c);
+        } else {
+            std::string labels;
+            for (const Field& f : settings_fields())
+                if (field_text(f, base) != field_text(f, draft)) labels += (labels.empty() ? "" : ", ") + std::string(f.label);
+            if (base.pin != draft.pin) labels += (labels.empty() ? "" : ", ") + std::string("PIN");
+            add_log(LogKind::Safety, fmt("Setup: %d settings changed: ", static_cast<int>(changes.size())) + labels + ".");
+        }
+        if (!r.detail.empty()) say(r.detail);
+        draft = keeper->settings();
+        base = draft;
+        seen_revision = keeper->revision();
+        fill_group();
+    }
+
+    // -- the number pad ------------------------------------------------------------------
+    void build_editor() {
+        editor = box(lv_display_get_layer_top(disp), 0, 0, kW, 600 - kNav, 0x05070A);
+        lv_obj_set_style_bg_opa(editor, LV_OPA_80, 0);
+        lv_obj_add_flag(editor, LV_OBJ_FLAG_CLICKABLE);
+        lv_obj_t* c = box(editor, 162, 8, 700, 508, 0x151B24, 16, kEdge);
+        ed_title = text(c, 24, 18, "", &leota_inter_28_bold);
+        name("edit.title", ed_title);
+        name("editor", editor);
+        ed_help = text(c, 24, 60, "", &leota_inter_16, kSoft, 652);
+        lv_obj_t* vb = box(c, 24, 112, 652, 64, kDark, 10, kChipEdge);
+        ed_value = text(vb, 16, 16, "", &leota_inter_28_bold);
+        name("edit.value", ed_value);
+        ed_note = text(c, 24, 186, "", &leota_inter_16, kMuted, 652);
+        name("edit.note", ed_note);
+        struct K { const char* label; const char* id; int col, row, span; };
+        const K keys[] = {{"7", "7", 0, 0, 1}, {"8", "8", 1, 0, 1}, {"9", "9", 2, 0, 1}, {"Delete", "delete", 3, 0, 1},
+                          {"4", "4", 0, 1, 1}, {"5", "5", 1, 1, 1}, {"6", "6", 2, 1, 1}, {"Clear", "clear", 3, 1, 1},
+                          {"1", "1", 0, 2, 1}, {"2", "2", 1, 2, 1}, {"3", "3", 2, 2, 1}, {kMinus, "minus", 3, 2, 1},
+                          {"0", "0", 0, 3, 2}, {".", "dot", 2, 3, 1}};
+        for (const K& k : keys) {
+            const bool word = std::string(k.label).size() > 3;
+            lv_obj_t* b = button(c, 24 + k.col * 108, 222 + k.row * 70, 100 * k.span + 8 * (k.span - 1), 62, k.label,
+                                 Kind::Plain, word ? &leota_inter_16_semi : &leota_inter_28_bold);
+            const std::string id = k.id;
+            name("edit.key." + id, b);
+            ed_keys[id] = b;
+            on_click(b, [this, id] { edit_key(id); });
+        }
+        lv_obj_t* set_btn = button(c, 468, 222, 208, 132, "Set", Kind::Blue, &leota_inter_20_bold);
+        name("edit.set", set_btn);
+        on_click(set_btn, [this] { edit_set(); });
+        lv_obj_t* cancel = button(c, 468, 362, 208, 132, "Cancel");
+        name("edit.cancel", cancel);
+        on_click(cancel, [this] { show(editor, false); });
+        show(editor, false);
+    }
+
+    static std::string plain_number(double v, int decimals) {
+        char buf[40];
+        std::snprintf(buf, sizeof buf, "%.*f", decimals, v);
+        std::string s = buf;
+        if (s == "-0" || s.rfind("-0.", 0) == 0) {
+            bool zero = true;
+            for (char ch : s) zero = zero && (ch == '-' || ch == '0' || ch == '.');
+            if (zero) s.erase(0, 1);
+        }
+        return s;
+    }
+
+    void open_editor(const Field* f) {
+        ed_field = f;
+        ed_mode = EditMode::Field;
+        ed_text = f->kind == Field::Kind::Address ? address_text(static_cast<std::uint32_t>(f->get(draft)))
+                                                  : plain_number(f->get(draft), f->decimals);
+        ed_fresh = true;
+        set(ed_title, f->label);
+        set(ed_help, f->help);
+        if (f->kind == Field::Kind::Address) {
+            set(ed_note, "Four numbers from 0 to 255, with dots between.");
+        } else {
+            const std::string unit = f->unit[0] ? std::string(" ") + f->unit : "";
+            set(ed_note, "From " + field_value_text(*f, f->min) + " to " + field_value_text(*f, f->max) + unit + ".");
+        }
+        set_text_color(ed_note, kMuted);
+        enable(ed_keys["dot"], f->kind == Field::Kind::Address || f->decimals > 0);
+        enable(ed_keys["minus"], f->kind == Field::Kind::Number && f->min < 0);
+        show_edit_text();
+        show(editor, true);
+    }
+
+    void open_pin_editor() {
+        ed_field = nullptr;
+        ed_mode = EditMode::PinNew;
+        ed_text.clear();
+        ed_fresh = false;
+        set(ed_title, "New PIN");
+        set(ed_help, "4 to 8 digits. You'll enter it twice, and it takes effect when you save.");
+        set(ed_note, "");
+        enable(ed_keys["dot"], false);
+        enable(ed_keys["minus"], false);
+        show_edit_text();
+        show(editor, true);
+    }
+
+    void show_edit_text() {
+        std::string t;
+        for (char ch : ed_text) t += ch == '-' ? std::string(kMinus) : std::string(1, ch);
+        if (ed_field && ed_field->unit[0] && !t.empty()) t += std::string(" ") + ed_field->unit;
+        set(ed_value, t.empty() ? " " : t);
+        set_text_color(ed_value, ed_fresh ? kSoft : kInk);
+    }
+
+    void edit_key(const std::string& id) {
+        if (ed_fresh && id != "delete") ed_text.clear();
+        ed_fresh = false;
+        if (id == "delete") { if (!ed_text.empty()) ed_text.pop_back(); }
+        else if (id == "clear") ed_text.clear();
+        else if (id == "minus") {
+            if (!ed_text.empty() && ed_text[0] == '-') ed_text.erase(0, 1);
+            else ed_text.insert(0, "-");
+        } else if (id == "dot") {
+            const bool address = ed_field && ed_field->kind == Field::Kind::Address;
+            if (address ? std::count(ed_text.begin(), ed_text.end(), '.') < 3 : ed_text.find('.') == std::string::npos)
+                ed_text += ed_text.empty() || ed_text == "-" ? (address ? "" : "0.") : ".";
+        } else if (ed_text.size() < 16) {
+            ed_text += id;
+        }
+        show_edit_text();
+    }
+
+    void edit_error(const std::string& why) {
+        set(ed_note, why);
+        set_text_color(ed_note, kRedSoft);
+    }
+
+    void edit_set() {
+        if (ed_mode != EditMode::Field) {
+            const bool digits = ed_text.size() >= 4 && ed_text.size() <= 8 &&
+                                std::all_of(ed_text.begin(), ed_text.end(), [](char ch) { return ch >= '0' && ch <= '9'; });
+            if (ed_mode == EditMode::PinNew) {
+                if (!digits) return edit_error("The PIN must be 4 to 8 digits.");
+                ed_pin = ed_text;
+                ed_text.clear();
+                ed_mode = EditMode::PinAgain;
+                set(ed_title, "New PIN again");
+                set(ed_note, "");
+                show_edit_text();
+                return;
+            }
+            if (ed_text != ed_pin) {
+                ed_text.clear();
+                ed_mode = EditMode::PinNew;
+                set(ed_title, "New PIN");
+                show_edit_text();
+                return edit_error("Those didn't match. Enter the new PIN again.");
+            }
+            draft.pin = ed_pin;
+            show(editor, false);
+            fill_group();
+            return;
+        }
+        const Field& f = *ed_field;
+        double v = 0.0;
+        if (f.kind == Field::Kind::Address) {
+            std::uint32_t a = 0;
+            if (!parse_address(ed_text, a)) return edit_error("That isn't an address: four numbers from 0 to 255, with dots.");
+            v = a;
+        } else {
+            char* end = nullptr;
+            v = std::strtod(ed_text.c_str(), &end);
+            if (ed_text.empty() || ed_text == "-" || !end || *end) return edit_error("Type a number.");
+            const double k = std::pow(10.0, f.decimals);
+            v = std::round(v * k) / k;
+        }
+        std::string why;
+        if (!field_allows(f, v, &why)) return edit_error(why);
+        f.set(draft, v);
+        show(editor, false);
+        fill_group();
+    }
+
+    // -- the calibration check -----------------------------------------------------------
+    void build_calibration() {
+        cal_dialog = box(lv_display_get_layer_top(disp), 0, 0, kW, 600 - kNav, 0x05070A);
+        name("cal.dialog", cal_dialog);
+        lv_obj_set_style_bg_opa(cal_dialog, LV_OPA_80, 0);
+        lv_obj_add_flag(cal_dialog, LV_OBJ_FLAG_CLICKABLE);
+        lv_obj_t* c = box(cal_dialog, 16, 8, 992, 508, 0x151B24, 16, kEdge);
+        text(c, 24, 18, "Check the measurements", &leota_inter_28_bold);
+        text(c, 24, 62,
+             "The ball flies to nine points around the middle and hangs still at each while every line is measured. "
+             "From that the controller works out where the pulleys really are and what the head weighs. It takes about "
+             "a minute, then parks the ball on the dock and disarms.",
+             &leota_inter_16, kSoft, 440);
+        lv_obj_t* rb = box(c, 24, 214, 440, 44, kDark, 10, kChipEdge);
+        cal_ready_dot = dot(rb, 14, 17, 10, kOff);
+        cal_ready = text(rb, 34, 12, "", &leota_inter_16_semi);
+        lv_obj_set_width(cal_ready, 396);
+        lv_label_set_long_mode(cal_ready, LV_LABEL_LONG_DOT);
+        name("cal.ready", cal_ready);
+        text(c, 24, 266, "The ball moves on its own: keep everyone clear. STOP and the E-stops work as always.",
+             &leota_inter_14, kMuted, 440);
+        cal_bar = bar(c, 24, 312, 440, 14, 100);
+        cal_msg = text(c, 24, 334, "", &leota_inter_16, kInk, 440);
+        name("cal.message", cal_msg);
+        cal_start = button(c, 24, 372, 212, 56, "Start", Kind::Amber, &leota_inter_20_bold);
+        name("cal.start", cal_start);
+        on_click(cal_start, [this] {
+            const Result r = cal.start(rig, now);
+            result(r);
+            if (r) add_log(LogKind::Motion, "Calibration check started at the screen.");
+        });
+        cal_stop = button(c, 252, 372, 212, 56, "Stop", Kind::Red, &leota_inter_20_bold);
+        name("cal.stop", cal_stop);
+        on_click(cal_stop, [this] { cal.cancel(rig, now); });
+        cal_use = button(c, 24, 438, 212, 56, "Use these", Kind::Blue);
+        name("cal.use", cal_use);
+        on_click(cal_use, [this] { use_calibration(); });
+        cal_close = button(c, 252, 438, 212, 56, "Close");
+        name("cal.close", cal_close);
+        on_click(cal_close, [this] { show(cal_dialog, false); });
+
+        lv_obj_t* r = box(c, 496, 18, 472, 476, kCard, 12, kLine);
+        text(r, 18, 14, "What it found", &leota_inter_20_bold);
+        const char* heads[3] = {"", "Found at (x, y, z)", "Off by"};
+        const int cx[3] = {18, 110, 350};
+        for (int i = 0; i < 3; ++i) text(r, cx[i], 52, heads[i], &leota_inter_14, kMuted);
+        const char* rows[5] = {"Pulley A", "Pulley B", "Pulley C", "Pulley D", "Head"};
+        for (int i = 0; i < 5; ++i) {
+            text(r, 18, 80 + i * 34, rows[i], &leota_inter_16, kSoft);
+            cal_found[i] = text(r, 110, 80 + i * 34, "", &leota_inter_16_semi);
+            cal_off[i] = text(r, 350, 80 + i * 34, "", &leota_inter_16_semi);
+            lv_obj_set_width(cal_off[i], 104);
+            lv_obj_set_style_text_align(cal_off[i], LV_TEXT_ALIGN_RIGHT, 0);
+        }
+        cal_summary = text(r, 18, 260, "", &leota_inter_16, kInk, 436);
+        name("cal.summary", cal_summary);
+        show(cal_dialog, false);
+    }
+
+    void open_calibration() {
+        show(cal_dialog, true);
+        refresh_calibration();
+    }
+
+    void refresh_calibration() {
+        const bool running = cal.running();
+        const std::string why = CalibrationRun::not_ready(rig);
+        const bool again = cal.phase() == CalibrationRun::Phase::Done || cal.phase() == CalibrationRun::Phase::Failed;
+        set(cal_ready, running ? "Running." : why.empty() ? (again ? "Ready to run it again." : "Ready to start.")
+                                : again ? "To run it again, " + lower_first(why) : why);
+        set_color(cal_ready_dot, running ? kAmber : why.empty() ? kGreen : kOff);
+        enable(cal_start, !running && why.empty());
+        enable(cal_stop, running);
+        enable(cal_close, !running);
+        const bool have = cal.phase() == CalibrationRun::Phase::Done && cal.fit().mass > 0.0;
+        enable(cal_use, have);
+        bar_value(cal_bar, cal.points() ? 100 * cal.measured() / cal.points() : 0);
+        set(cal_msg, cal.phase() == CalibrationRun::Phase::Off ? "" : cal.message());
+        set_text_color(cal_msg, cal.phase() == CalibrationRun::Phase::Failed ? kRedSoft : kInk);
+        const CalFit& f = cal.fit();
+        for (int i = 0; i < 5; ++i) {
+            if (!have) {
+                set(cal_found[i], "\xE2\x80\x94");
+                set(cal_off[i], "");
+                continue;
+            }
+            if (i < kLines) {
+                const Vec3& a = f.anchors[i];
+                set(cal_found[i], mm(a.x) + ", " + mm(a.y) + ", " + mm(a.z));
+                set(cal_off[i], mm(f.moved[i]) + " mm");
+                set_text_color(cal_off[i], f.moved[i] >= 30 ? kAmberSoft : f.moved[i] >= 10 ? kInk : kGreenInk);
+            } else {
+                set(cal_found[i], fmt("%.2f kg", f.mass));
+                const double d = f.mass - rig.config().mass;
+                set(cal_off[i], std::fabs(d) < 0.005 ? "0 kg" : fmt("%s%.2f kg", d > 0 ? "+" : kMinus, std::fabs(d)));
+                set_text_color(cal_off[i], std::fabs(d) >= 0.05 ? kAmberSoft : kGreenInk);
+            }
+        }
+        std::string summary = cal.phase() == CalibrationRun::Phase::Done ? f.summary : "";
+        for (size_t at = 0; (at = summary.find(". ", at)) != std::string::npos;) summary.replace(at, 2, ".\n");
+        set(cal_summary, summary);
+    }
+
+    void use_calibration() {
+        const CalFit& f = cal.fit();
+        const char* names[kLines] = {"A", "B", "C", "D"};
+        const char* axes[3] = {"x", "y", "z"};
+        for (int i = 0; i < kLines; ++i) {
+            const double v[3] = {f.anchors[i].x, f.anchors[i].y, f.anchors[i].z};
+            for (int k = 0; k < 3; ++k)
+                find_field(std::string("pulley.") + names[i] + "." + axes[k])->set(draft, std::round(v[k]));
+        }
+        find_field("mass")->set(draft, std::round(f.mass * 100.0) / 100.0);
+        show(cal_dialog, false);
+        group = 3;
+        fill_group();
     }
 
     // -- Log -----------------------------------------------------------------------------
@@ -1224,7 +1730,7 @@ struct Ui::Impl {
             lv_obj_set_width(tl, 84);
             lv_obj_set_style_text_align(tl, LV_TEXT_ALIGN_CENTER, 0);
             lv_obj_t* msg = text(row, 188, 10, e.text.c_str(), &leota_inter_16);
-            lv_obj_set_width(msg, 776);
+            lv_obj_set_size(msg, 776, 20);  // one line, cut short with dots
             lv_label_set_long_mode(msg, LV_LABEL_LONG_DOT);
             if (++n >= 40) break;
         }
@@ -1298,10 +1804,21 @@ struct Ui::Impl {
             add_log(windy ? LogKind::Wind : safety ? LogKind::Safety : LogKind::Motion, last_message);
         }
         if (jog_axis >= 0 && now - jog_last >= 0.1) send_jog();
+        if (cal.running()) cal.update(rig, now);
+        if (cal.phase() != cal_seen) {
+            cal_seen = cal.phase();
+            if (cal_seen == CalibrationRun::Phase::Done) add_log(LogKind::Motion, "Calibration check: " + cal.fit().summary);
+            if (cal_seen == CalibrationRun::Phase::Failed) add_log(LogKind::Motion, "Calibration check: " + cal.message());
+        }
         sample_wind();
         const bool estop = rig.estop();
         show(estop_page, estop);
-        if (estop) lv_obj_move_foreground(estop_page);
+        if (estop) {
+            lv_obj_move_foreground(estop_page);
+            show(editor, false);
+            if (!cal.running()) show(cal_dialog, false);
+        }
+        if (!lv_obj_has_flag(cal_dialog, LV_OBJ_FLAG_HIDDEN)) refresh_calibration();
         refresh_top();
         if (!estop) {
             switch (page) {
@@ -1310,6 +1827,7 @@ struct Ui::Impl {
                 case 2: refresh_jog(); break;
                 case 3: refresh_weather(); break;
                 case 4: refresh_diagnostics(); break;
+                case 5: refresh_setup(); break;
                 case 6: refresh_log(); break;
                 default: break;
             }
@@ -1321,7 +1839,7 @@ struct Ui::Impl {
     }
 };
 
-Ui::Ui(Rig& rig, lv_display_t* display, std::string pin) : d_(new Impl(rig, display, std::move(pin))) {
+Ui::Ui(Rig& rig, lv_display_t* display, SettingsKeeper* settings) : d_(new Impl(rig, display, settings)) {
     d_->build();
 }
 

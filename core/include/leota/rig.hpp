@@ -52,6 +52,7 @@ struct LineStatus {
     double tension = 0.0;    // N, measured
     double expected = 0.0;   // N, from the model
     double length = 0.0;     // mm, pulley to ball, measured (0 until homed)
+    double out = 0.0;        // mm of unstretched line the drive has paid out (0 until homed)
     double swing = 0.0;      // N: half the spread of tension over the last 2 s
     double trim = 0.0;       // mm the tension loop has added
     bool ready = false, alarm = false;
@@ -72,6 +73,10 @@ public:
     Result park(double now);  // fly back over the dock and set the ball down
     Result clear_faults(double now);  // once their causes are gone; stays disarmed
     Result set_limits(int axis, const AxisLimits& limits);
+    // New settings, from Setup. Only while disarmed. A change to where the pulleys or the
+    // dock are, or to two-axis mode, needs the ball on the dock and homing again.
+    Result reconfigure(const RigConfig& cfg);
+    static bool needs_homing(const RigConfig& a, const RigConfig& b);  // after a change from a to b
     void set_heartbeat_timeout(double s) { cfg_.heartbeat_timeout = s; }
 
     void set_remote(bool on, double now);  // the touchscreen toggle or key switch
@@ -90,6 +95,9 @@ public:
     bool drives_on() const { return drives_on_; }
     bool brakes_released() const { return brakes_released_; }
     bool busy() const;  // anything moving, or settling
+    bool on_dock() const;  // the commanded ball is resting on the dock
+    // Each line's tension when homing found it tight (for calibration).
+    const std::array<double, kLines>& home_tensions() const { return home_t_; }
     std::uint32_t faults() const { return faults_; }
     const std::string& message() const { return message_; }
     Vec3 position() const;  // the ball's commanded centre, mm
@@ -147,6 +155,7 @@ private:
     Vec3 lean_;          // the ball's modelled lean (rotation vector)
     int lean_count_ = 0;
     LineArray slack_t_{}, mismatch_t_{};
+    LineArray home_t_{};
 
     bool started_ = false;
     double now_ = 0.0, last_heard_ = -1.0, phase_t_ = 0.0;

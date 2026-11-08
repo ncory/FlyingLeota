@@ -24,11 +24,14 @@ simulator then has none.
 ## Using it
 
 ```cpp
-leota::Ui ui(rig, display);           // display: an lv_display_t of 1024 × 600
+leota::Ui ui(rig, display, &keeper);  // display: an lv_display_t of 1024 × 600
 ui.update(now, link, "21:05");        // every 50 ms or so, then lv_timer_handler()
 ui.log(leota::LogKind::Show, "Show Controller: move x");
 ```
 
+- `keeper` is the `SettingsKeeper` (core `settings.hpp`) that holds the settings and the
+  Setup PIN and keeps them in flash. Without one, Setup's changes last until a restart and
+  the PIN is `1234`.
 - `Ui` talks to the `Rig` directly, as the touchscreen does on the controller. It never
   goes through SCMP, so its controls work whether remote control is on or off.
 - The caller owns LVGL: `lv_init()`, the tick, the display and its flush, and the touch
@@ -48,25 +51,68 @@ ui.log(leota::LogKind::Show, "Show Controller: move x");
 | Jog | Hold-to-run arrows for x, y and z at three speeds, and go to the dock. Only with remote control off. |
 | Weather | Wind now, gust and average, the last 30 minutes' gusts against the Amber and Red lines, the levels and what each does, and the Red hold's countdown. |
 | Diagnostics | Each winch's line out, tension, expected tension, drive and brake; safety inputs; wind sensor; network. |
-| Setup | Behind a PIN (`1234` in the simulator). The rig's settings, read-only for now. |
+| Setup | Behind a PIN (`1234` to start with). Every setting a person may change on site, with a check of the measurements by flying. See below. |
 | Log | Tonight's events, filtered by safety, motion, wind, network and show. |
 
 During an E-stop every screen gives way to a red one: what happened, that motor power is off
 and the brakes hold, and how to recover. STOP is on every screen.
+
+## Setup
+
+![Setup's Wind group with one change not saved](../docs/images/touchscreen-setup.png)
+
+- **Groups:** Flight (two-axis mode, workspace edges, speeds, accelerations, smoothing),
+  Lines and safety (slack, overload and mismatch limits, heartbeat timeout, whether Show
+  Controller may arm), Wind (sensor fitted, Amber and Red gusts, hold time, Amber speed,
+  swing alarm), Measurements (pulleys, dock, head weight), Network (DHCP or a fixed
+  address, the SCMP port) and the PIN.
+- **Editing:** tap a row. Numbers are typed on a number pad that shows the allowed range
+  and refuses anything outside it; switches flip at a tap. Changed rows turn amber.
+- **Saving:** Save checks the settings as a whole (Amber below Red, the dock inside the
+  workspace, the pulleys above it, a netmask that is one, and so on), gives them to the rig
+  and stores them. Anything that changes how the rig flies waits until it is disarmed;
+  the network and PIN don't. A change to the pulleys, the dock or two-axis mode needs the
+  ball on the dock, and then homing again. Undo changes drops the draft; so does Lock.
+- **Every change goes in the log**, as "Setup: Red at gust: 11.0 m/s to 12.5 m/s."
+- The settings themselves (their labels, units, ranges and help) are one table in the
+  core, `settings_fields()`, so the screen, the stored JSON and the checks always agree.
+
+### Check by flying
+
+![The calibration check's results](../docs/images/touchscreen-calibration.png)
+
+Measurements has **Check by flying**. With the rig armed, homed, still, remote control off
+and the wind Green, the ball flies to nine points around the middle of the gazebo and hangs
+still at each while the controller averages every line's tension and how much line each
+winch has paid out. It then parks the ball and disarms. Those numbers only agree with one
+set of pulley positions and one head weight; a least-squares fit (core `calibration.hpp`)
+finds them, starting from the tape measurements. **Use these** copies them into
+Measurements, to save and then home again.
+
+In the simulator, with pulley A really 113 mm from where it was measured and the head
+600 g heavier than set, one check finds both: pulley A within a few millimetres and the
+weight exactly. The fit can't tell if all four pulleys turned together about the dock (that
+changes nothing it can measure), so it keeps their average direction from the tape
+measurements, and one big error spreads a few millimetres onto the others. A second check
+after using the first cleans that up. With the load cells' noise at 0.3 N it still finds the
+pulley within 15 mm.
 
 ## Files
 
 | File | Does |
 | --- | --- |
 | `include/leota/ui.hpp` | The `Ui` class and `UiLink`. |
-| `src/ui.cpp` | Every screen, the arm dialog and the E-stop page. |
+| `src/ui.cpp` | Every screen, the arm dialog, Setup's number pad, the calibration check and the E-stop page. |
 | `lv_conf.h` | LVGL's settings: 16-bit color, 512 KB for LVGL's heap. |
 | `fonts/` | Inter at 14, 16, 20 and 28 px with a few icons. See `fonts/README.md`. |
-| `tests/test_ui.cpp` | Taps through the screens against the simulated rig, through LVGL's own pointer input. |
+| `tests/test_ui.cpp` | Taps through the screens against the simulated rig, through LVGL's own pointer input: arming, homing, STOP, jog, the E-stop, typing and saving settings, the PIN, and a whole calibration check. |
 
 ## On the ESP32-P4
 
 Not done yet. The firmware will give LVGL a MIPI-DSI display with buffers in PSRAM, the
 panel's touch controller as the pointer, and a tick from the system timer, then call
 `ui.update()` from the UI task. The control loop runs in its own task, so the UI must only
-read the rig and call its methods under the same lock the SCMP task uses.
+read the rig and call its methods under the same lock the SCMP task uses. The firmware
+gives the `SettingsKeeper` a store that writes NVS. The calibration fit takes 2 ms on a
+PC; with the P4's software doubles, expect a few hundred milliseconds, once, at the end
+of a check.

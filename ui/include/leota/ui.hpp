@@ -10,6 +10,7 @@
 #include <string>
 
 #include "leota/rig.hpp"
+#include "leota/settings.hpp"
 #include "lvgl.h"
 
 namespace leota {
@@ -28,8 +29,9 @@ enum class LogKind { Safety, Motion, Wind, Network, Show };
 
 class Ui {
 public:
-    // Builds every screen on `display`. `pin` unlocks Setup.
-    Ui(Rig& rig, lv_display_t* display, std::string pin = "1234");
+    // Builds every screen on `display`. Setup changes the settings through `settings`
+    // (which also holds the Setup PIN); without one, changes last until a restart.
+    Ui(Rig& rig, lv_display_t* display, SettingsKeeper* settings = nullptr);
     ~Ui();
     Ui(const Ui&) = delete;
     Ui& operator=(const Ui&) = delete;

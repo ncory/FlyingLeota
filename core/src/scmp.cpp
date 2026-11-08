@@ -235,6 +235,8 @@ bool dispatch(std::string_view t, Req& q, const std::string& firmware) {
     int ax = -1;
     if (t == "arm" || t == "disarm" || t == "home" || t == "stop") {
         if (!q.axis(true, ax)) return false;  // coupled: any axis means all
+        if (t == "arm" && !rig.config().remote_arm && !rig.armed())
+            return q.fail("local", "This rig is set to be armed only at its own screen.");
         if (t == "arm") return q.refused(rig.arm(q.now));
         if (t == "disarm") return q.refused(rig.disarm(q.now));
         if (t == "home") return q.refused(rig.home(q.now));
@@ -319,6 +321,7 @@ std::string ScmpServer::handle(std::string_view message, double now) {
         next_ = (next_ + 1) % static_cast<int>(answered_.size());
     }
     if (ok && type != "status") force_ = true;
+    if (ok && type == "config" && msg["set"].is<JsonObjectConst>() && on_config_set) on_config_set();
     return out;
 }
 

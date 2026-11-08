@@ -17,6 +17,8 @@ const char* wind_level_name(WindLevel l);  // "green", "amber", "red"
 class WindMonitor {
 public:
     explicit WindMonitor(const WindConfig& cfg) : cfg_(cfg) {}
+    // New thresholds; what has been measured so far is kept.
+    void configure(const WindConfig& cfg) { cfg_ = cfg; }
 
     void sample(double now, double speed);  // m/s, from the anemometer
     // The largest line-tension swing (N) while the ball is still; pass a negative number

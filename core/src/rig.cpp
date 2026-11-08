@@ -72,13 +72,20 @@ std::array<LineStatus, kLines> Rig::lines() const {
         l.name = cfg_.lines[i].name;
         l.tension = fb_[i].tension;
         l.expected = expected_[i];
-        l.length = homed_ ? (fb_[i].position + offset_[i]) * (1.0 + fb_[i].tension / cfg_.line_ea) : 0.0;
+        l.out = homed_ ? fb_[i].position + offset_[i] : 0.0;
+        l.length = l.out * (1.0 + fb_[i].tension / cfg_.line_ea);
         l.swing = swing_[i];
         l.trim = trim_[i] + pull_ * free_[i];
         l.ready = fb_[i].ready;
         l.alarm = fb_[i].alarm;
     }
     return out;
+}
+
+bool Rig::on_dock() const {
+    const Vec3 p = position();
+    const double dx = p.x - cfg_.dock.x, dy = p.y - cfg_.dock.y;
+    return std::sqrt(dx * dx + dy * dy) <= cfg_.dock_radius && p.z <= cfg_.dock.z + cfg_.dock_zone;
 }
 
 bool Rig::flying() const {
@@ -287,6 +294,37 @@ Result Rig::set_limits(int axis, const AxisLimits& l) {
         return {Refusal::BadMessage, "Min must be below max, and speed and acceleration above 0."};
     if (armed_ && busy()) return {Refusal::Busy, "Not while moving."};
     cfg_.axes[axis] = l;
+    return {};
+}
+
+bool Rig::needs_homing(const RigConfig& a, const RigConfig& b) {
+    auto same = [](const Vec3& u, const Vec3& v) { return (u - v).norm() < 1e-9; };
+    for (int i = 0; i < kLines; ++i)
+        if (!same(a.lines[i].anchor, b.lines[i].anchor) || !same(a.lines[i].attach, b.lines[i].attach)) return true;
+    return !same(a.dock, b.dock) || a.ball_radius != b.ball_radius || a.two_axis != b.two_axis ||
+           (b.two_axis && a.fixed_y != b.fixed_y);
+}
+
+Result Rig::reconfigure(const RigConfig& c) {
+    if (armed_ || disarm_ != Disarm::None) return {Refusal::Busy, "Disarm first. Settings change only while disarmed."};
+    const std::string bad = check_config(c);
+    if (!bad.empty()) return {Refusal::BadMessage, bad.substr(0, bad.find('\n'))};
+    const bool rehome = needs_homing(cfg_, c);
+    if (rehome && homed_ && !on_dock())
+        return {Refusal::Busy, "Park the ball on the dock first: this change means homing again."};
+    const Vec3 p = position();
+    cfg_ = c;
+    window_ = std::max(1, static_cast<int>(std::lround(cfg_.smoothing / cfg_.control_period)));
+    for (int a = 0; a < kAxes; ++a) axes_[a].reset(component(rehome ? cfg_.dock : p, a), window_);
+    wind_.configure(cfg_.wind);
+    lean_ = {};
+    lean_count_ = 0;
+    if (rehome && homed_) {
+        homed_ = false;
+        message_ = "Settings changed. Home at the dock before flying.";
+    } else {
+        message_ = "Settings changed.";
+    }
     return {};
 }
 
@@ -502,6 +540,7 @@ void Rig::step_homing(double dt) {
         // Every line is tight with the ball on the dock: now every length is known.
         LineArray t{};
         for (int i = 0; i < kLines; ++i) t[i] = fb_[i].tension;
+        home_t_ = t;
         const LineArray now_out = unstretched_lengths(cfg_, cfg_.dock, t);
         const Tensions e = expected_tensions(cfg_, cfg_.dock, cfg_.plan_tension_min);
         const LineArray want = unstretched_lengths(cfg_, cfg_.dock, e.t);
