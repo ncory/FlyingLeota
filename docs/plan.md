@@ -59,7 +59,7 @@ controller.
 | Dock | A pedestal fixed to a table in the middle of the gazebo, its top 0.75 m (30 in) off the deck. The head rests here when it isn't flying. |
 | Head | Lifesize, inside a clear sphere made to look like a crystal ball, 13–14 in (0.33–0.36 m) across. A large curly wig. Weight not known yet. This year's head is fixed on the pedestal, with front projection onto a blank face. A flying head needs the projector inside instead, so the image moves with it. |
 | Facing | **The face must always point towards the audience.** |
-| On board | A Raspberry Pi Zero 2 W drives a small wide-angle projector in the neck. A mirror throws the image onto the back of the face. Maybe LEDs. All on a lithium-ion battery. No power through the lines: they stay as thin as possible. Projector not chosen yet. |
+| On board | A Raspberry Pi Zero 2 W drives a small laser projector in the neck (an Ultimems HD309D1-C1, being sourced). A mirror throws the image onto the back of the face. Maybe LEDs. All on a lithium-ion battery. No power through the lines: they stay as thin as possible. Projector not chosen yet. |
 | Viewing | At night, in low light. The lines should vanish into the dark. |
 
 This is like the séance-room crystal ball: it sits on the table, rises, drifts and floats,
@@ -342,8 +342,8 @@ on their own supplies and not included.
 | 4 brakes, held released while armed | 24 V | 30–45 W | 45 W |
 | ESP32-P4 board and 7" screen | 24 V (via 5 V) | 4 W | 6 W |
 | Safety relay, contactor coil, I/O, load cells, anemometer, stack light, fan | 24 V | 15 W | 30 W |
-| Dock charger for the ball | 24 V | 0–25 W | 60 W (contacts) or 25 W (inductive) |
-| **Total DC** | | **about 110–290 W** | **about 540 W** |
+| Dock charger for the ball (inductive) | 24 V | 0–35 W | 35 W |
+| **Total DC** | | **about 110–300 W** | **about 515 W** |
 
 Why the winches are budgeted so high: lifting even a 6 kg head at 0.3 m/s takes only about
 18 W of actual work. But a stepper draws current to make torque whether it moves or not,
@@ -355,7 +355,7 @@ light, so holding still is cheaper than the worst case. An ODrive is more effici
 | Rail | Supply | Rating | Load at worst |
 | --- | --- | --- | --- |
 | 48 V | Mean Well SDR-480-48 | 480 W (10 A) | about 400 W: 83% |
-| 24 V | Mean Well SDR-240-24 | 240 W (10 A) | about 140 W: 58% |
+| 24 V | Mean Well SDR-240-24 | 240 W (10 A) | about 115 W: 48% |
 | 5 V | DC-DC converter from the 24 V | about 15 W | under 10 W |
 
 These are not old-style transformers. A switch-mode supply takes the AC mains straight in
@@ -367,7 +367,7 @@ draw more than their ratings.
 | Case | AC power | AC current |
 | --- | --- | --- |
 | Typical, show running | about 120–310 W | about 1–3 A |
-| Worst-case budget above | about 575 W | about 5 A |
+| Worst-case budget above | about 550 W | about 5 A |
 | **Ceiling: both supplies at full rating** | **about 770 W** | **about 6.5–7 A** |
 | Switch-on surge | | about 40 A + 33 A for a few thousandths of a second |
 
@@ -560,7 +560,7 @@ the sphere shouldn't carry them on its own. Proposed:
   so it adds no load path of its own.
 - **The battery goes at the bottom,** in or below the neck. It is the low center of
   weight.
-- **A small base fitting** at the bottom of the sphere carries the charging pads or coil
+- **A small base fitting** at the bottom of the sphere carries the charging coil
   (below) and seats the ball on the dock. A crystal ball on a stand looks right, so this
   can be part of the look.
 
@@ -594,52 +594,153 @@ front. Section 6 turns this into rules.
 
 ### Power on board
 
-Rough power budget (to firm up once the projector is chosen):
+#### The projector: Ultimems HD309D1-C1
+
+The plan is an Ultimems HD309D1-C1, being sourced for testing. It is a laser projector
+with a single tiny scanning mirror (MEMS): three lasers draw the picture line by line.
+From its manual (version 1.0, preliminary):
+
+| | |
+| --- | --- |
+| Picture | 1280 × 720 at 60 frames a second. 34 lumens. Throw ratio under 1.3 (39° × 23°). |
+| Focus | None needed. It is sharp at any distance, so a curved face stays in focus. |
+| Video | HDMI (its "digital video interface" board) or DisplayPort over USB-C. The Pi Zero 2 W uses HDMI, set to 1280 × 720 (`hdmi_group=2`, `hdmi_mode=85`). |
+| Power | 5 V (4.75–5.5 V; more can damage it) through USB-C. Under 5.5 W running, 6.5 W at peak. |
+| Heat | Its top cover must stay under 50 °C. It needs a metal base of at least 105 × 66.5 × 23 mm; the supplied heat sink is that size. |
+| Weight | 35 g for the module, more with its heat sink and boards. |
+| Rated for | 0–35 °C and 40–60% humidity. A Class 1 laser product. |
+
+What that means for the head:
+
+- **Everything runs on 5 V.** The Pi, the projector and any LEDs all take 5 V, so the
+  battery feeds one 5 V regulator good for 3 A or more.
+- **Keep magnets and strong fields away from it.** The manual warns that magnetic fields
+  and vibration make the picture jump. The charging coil makes a strong alternating field
+  at the bottom of the ball. Keep the coil as far from the projector as the ball allows,
+  and test the picture while charging and while flying (H2, H3).
+- **The mirror.** The manual says not to aim it at a mirror. It is a Class 1 product and
+  the light stays inside the sphere, but ask Ultimems whether a fold mirror changes that
+  before building around one.
+- **Outdoors is outside its rating.** The sealed ball helps: the electronics keep the air
+  inside a few degrees warmer, and warmer air is drier. Add a desiccant pack, keep the
+  ball closed on damp nights, and log the temperature and humidity inside in H3.
+- **Check 720p from the Pi Zero 2 W** through the Show Controller follower's renderer (H2).
+  The manual's settings are for the older Raspberry Pi display stack.
+
+#### Power budget and battery
 
 | Load | Power |
 | --- | --- |
-| Raspberry Pi Zero 2 W playing video | about 1.5–2.5 W |
-| Small projector | about 2–10 W, by model and brightness |
-| LEDs | about 1–3 W |
-| **Total** | **about 5–15 W** |
+| Raspberry Pi Zero 2 W playing video | 1.5–2.5 W |
+| HD309D1-C1 projector | under 5.5 W (6.5 W at peak) |
+| LEDs, if any | 1–3 W |
+| 5 V regulator losses (about 90% efficient) | about 1 W |
+| **Total from the battery** | **about 8–12 W (13 W at peak)** |
 
-**A full-evening battery is light.** 4 hours at 15 W is 60 Wh. Add 25% for battery ageing
-and cold nights: about 75 Wh. A lithium-ion pack stores very roughly 150 Wh per kg, so
-that's about **0.5 kg**. A pack for 2 hours would save only about 0.25 kg. The ball should
-weigh 5–8 kg anyway, and weight at the bottom is the good kind. So a smaller pack buys
-almost nothing.
+**Battery: 60–75 Wh, at the bottom of the ball.** 4 hours at 12 W is 48 Wh. Add 25% for
+ageing and cold nights: 60 Wh. That's 0.4–0.5 kg of lithium-ion, and weight at the bottom
+is the good kind (section 4). A full-evening pack still makes sense: nobody has to open the
+ball, and the dock is a convenience the show doesn't depend on.
 
-**Recommendation: carry the full 4-hour pack, and charge on the dock as well.** The dock
-then tops the battery up between shows and charges it overnight. Nobody has to open the
-ball, and a long night or a cold one can't run it flat. The dock is a convenience, not
-something the show depends on.
+Two ways to build it, to settle in H3:
 
-Charging on the dock, two ways:
+- **1S** (cells all in parallel, 3.0–4.2 V), boosted to 5 V. For example, four 21700 cells
+  make about 72 Wh. Most charger, fuel gauge and Pi "UPS" boards are made for this.
+- **2S** (two in series, 6–8.4 V), stepped down to 5 V. It runs cooler at 3 A, but fewer
+  ready-made boards suit it.
 
-| Way | For | Against |
+#### Inductive charging on the dock
+
+Inductive charging, not spring contacts: nothing is exposed to dew and dirt, and it works
+through the acrylic.
+
+```mermaid
+flowchart LR
+  subgraph Dock["Dock pedestal"]
+    S["24 V from the controller"] --> SW["Switch<br/>(controller output)"] --> CS["Current sensor<br/>(controller reads it)"] --> TX["Transmitter coil<br/>under the cup"]
+  end
+  subgraph Ball["Ball's base fitting"]
+    RX["Receiver coil"] --> CH["Charger with power path<br/>(status pins)"]
+    CH <--> BAT["Battery<br/>+ temperature sensor"]
+    BAT --- FG["Fuel gauge"]
+    CH --> REG["5 V, 3 A or more"]
+    REG --> PI["Pi Zero 2 W"]
+    REG --> PJ["Projector, LEDs"]
+    FG -- "I²C" --> PI
+    CH -- "charging, power good" --> PI
+  end
+  TX -. "through the acrylic" .-> RX
+```
+
+- **Power.** Before and between shows the ball sits on the dock playing its idle loop, so
+  charging has to outrun the load: about 12 W into the battery while the head uses 10 W.
+  That's about 25 W out of the receiver and 35 W into the transmitter. Phone-style Qi
+  (5–15 W) can't keep up. Use an industrial wireless power kit of 25–50 W, rated for a
+  gap of 10 mm or more. From empty, with the head asleep, a 60–75 Wh pack fills in 3–4
+  hours. (If the head shows a blank face while docked outside a show, a 15 W kit would do.)
+- **Lining up.** The dock's cup centres the ball, so the coils sit within a few
+  millimetres of each other. Round coils don't care how the ball has turned. The gap is
+  the ball's acrylic wall plus the cup's surface: measure the wall. The sphere curves less
+  than 2 mm across a 50 mm coil.
+- **Heat.** Wireless charging is about 75–80% efficient: at 25 W, 5–6 W of heat, much of
+  it in the ball's base next to the battery. Back the coil with ferrite, keep it off the
+  cells, and have the charger stop above about 45 °C. With the projector running as well,
+  about 15 W heats the sphere. Its 0.4 m² of acrylic sheds very roughly 1.5–2 W per °C, so
+  the air inside runs about 8–10 °C above the air outside, and warmer near the projector.
+  Fine on a cool night; a problem on a 30 °C afternoon, given the projector's 35 °C
+  rating. Measure it in H3.
+- **Cold.** Lithium-ion must not be charged below 0 °C. The charger needs a temperature
+  cut-off. The electronics keep the ball a little warm, but on a freezing night the first
+  charge may wait; the fuel gauge's temperature says why.
+- **When it's on.** The controller turns the transmitter on while the ball rests on the
+  dock and the rig isn't flying, and off when it lifts. If the transmitter draws power with
+  no ball on the dock, something metal is on the pad: the controller turns it off and says
+  so.
+- **Power path.** The charger must keep the 5 V rail steady when the ball lands and lifts.
+  Many power banks drop their output for a moment then, which would reboot the Pi every
+  time. Test by docking and lifting while video plays (H3).
+
+#### Watching the charge
+
+The dock and the ball each know something the other doesn't:
+
+| Where | Knows | Shows it |
 | --- | --- | --- |
-| **Spring-loaded contacts** (gold-plated pogo pins on the pedestal, pads on the ball's base) | Simple. High power, so a fast top-up. | Exposed metal outdoors: dew and dirt. The pads must line up. |
-| **Inductive** (a Qi-style coil in the pedestal, another in the ball's base) | Nothing exposed. Works through the acrylic. Sealed. | Common modules give 5–15 W, so it's slower. The coils must be within a few millimetres of each other. The dock's seat lines them up. |
+| **The dock** (motion controller) | Whether the ball is taking power, and how much. | Its touchscreen ("Charging, 18 W", "Docked, charged", "Not charging"), and Show Controller through SCMP status (a new optional field). |
+| **The ball** (the Pi, a Show Controller follower) | Charge level, voltage, current in or out, battery temperature, time left, charger status. | Show Controller's Units page and Dashboard, health warnings and the show log; and the controller's touchscreen. |
 
-Either is fine with a full-evening pack. Inductive suits a damp outdoor gazebo better.
+- **The dock side works when the Pi can't.** A flat battery means the Pi is off, and then
+  the dock's "Charging" is the only sign of life. It also works without Wi-Fi.
+- **Only the Pi knows the charge level.** It reads the fuel gauge and charger over I²C
+  every few seconds.
+- **In Show Controller** (a follower feature, built in Show Controller): the charge on the
+  Units page and Dashboard, a health warning at 25%, show log entries for charging and
+  low battery, and a clean shutdown at about 5% so the SD card isn't damaged. The battery
+  board turns the Pi back on when charging starts.
+- **On the controller's touchscreen:** the Pi sends its charge straight to the controller,
+  in a small message every few seconds (proposed), so the touchscreen doesn't depend on
+  Show Controller.
+- **A low battery doesn't stop the ball flying.** A dark face is a show problem, not a
+  safety one. Show Controller can refuse to start a show below a set charge.
+- **No indicator lights inside the ball:** in a clear sphere they would show. The
+  touchscreen and Show Controller are the indicators. A small light on the pedestal's
+  base could glow while charging, and stay dark during shows.
 
-The controller switches dock power on only while the ball is seated and disarmed, and it
-reports the ball's charge if the Pi sends it.
+Parts to look at (examples, not choices):
 
-**Power path matters.** Many power banks cut their output for a moment when a charger is
-connected or disconnected. That would reboot the Pi every time the ball lands or lifts off.
-Use a battery board with proper power-path handling (a "UPS"-style board for the Pi, or a
-pack whose output never drops while charging). Test it by docking and lifting while video
-plays.
+- **Wireless power:** 24 V industrial transmitter and receiver pairs with 25–50 W out (for
+  example Würth Elektronik's wireless power kits). Check the gap they allow, their
+  efficiency, and whether they detect metal on the pad.
+- **Charger:** a 1S power-bank charger chip with power path, I²C status and a 5 V boost
+  that gives 3 A (TI BQ25895 class), or a ready-made Pi battery board with the same. For
+  the bench, a ready-made board is quicker.
+- **Fuel gauge:** a 1S gauge on I²C (Maxim MAX17260 or TI BQ27441 class), if the board
+  has none.
+- **On the dock:** an I²C power monitor (TI INA226 class) on the controller's bus, and a
+  MOSFET switch on the transmitter's 24 V.
 
-Other points:
+#### Other points
 
-- A projector in a closed sphere gets hot. Plan hidden vents, or a projector small enough
-  to run cool.
-- Projector candidates to evaluate: TI's DLPDLCR2000EVM (a tiny DLP projector board made
-  for a Raspberry Pi, 640×360, up to 30 lumens) and its bigger sibling DLPDLCR230NPEVM
-  (1080p, 100 lumens). Check that they work with a Zero 2 W, and check their throw and
-  power. In a dark scene, on a small face, 30 lumens may be enough.
 - The Pi Zero 2 W can be a **Show Controller follower** (design section 9). It plays its own
   copy of the media, in sync with the show, and takes cues over Wi-Fi. If Wi-Fi drops, it
   carries on by itself. Motion never depends on this link: the motion controller stays on
@@ -954,8 +1055,8 @@ flowchart LR
 | Step | Work | Settles |
 | --- | --- | --- |
 | H1. The sphere | Weigh this year's 14 in ball and measure its wall. If a new ball is needed (a hole at the top for the fitting, a base fitting), buy it early: it sets the fittings. | Sphere weight, and the top fitting design. |
-| H2. Projector | Pi Zero 2 W, candidate projectors, a mirror and a face blank on the bench. Brightness, throw, heat, power draw. | The projector, and the power budget. |
-| H3. Power | Battery and power-path board. Measure a 4-hour run. Dock charging (contacts or inductive), docking and lifting while video plays. | Battery size, charging method, no reboots on docking. |
+| H2. Projector | Pi Zero 2 W, the HD309D1-C1, a mirror and a face blank on the bench. Brightness, throw, heat, power draw. 720p through the Show Controller follower. The picture with the ball shaken and next to a charging coil. Ask Ultimems about the fold mirror. | The projector, and the power budget. |
+| H3. Power | Battery, charger with power path, fuel gauge. Measure a 4-hour run. An inductive kit through a piece of the ball's acrylic: power, heat, and the projector's picture while charging. Docking and lifting while video plays. Temperature and humidity inside the closed ball on a warm day and a cold night. | Battery size (1S or 2S), the charging kit, no reboots on docking, whether the ball needs vents. |
 | H4. Weigh it | The full head on the spine, with wig, projector and battery. Weight, and where the center of weight is. | Payload: the final line size, and the lean model's real numbers. |
 
 ### What to buy now
@@ -991,7 +1092,7 @@ on a catch.
 | --- | --- | --- |
 | Q1 | Answered: a square, post centers 91 in apart; pulleys on the corner pieces at 79 in; soft-top canopy on a steel frame, 100 in at the peak; pedestal at 0.75 m. | 24 in of rise with 12 in of clearance (section 4). |
 | Q2 | Ball 13–14 in across; face always to the audience (answered). **What will the whole head weigh?** What does this year's ball weigh? | Winches are sized for 6 kg. The line is chosen once the head is weighed (section 4). |
-| Q3 | Pi Zero 2 W, projector in the neck with a mirror, Li-ion battery (answered). **Which projector?** Contacts or inductive charging on the dock? | Power budget, heat, and the dock design (section 4). |
+| Q3 | Pi Zero 2 W, projector in the neck with a mirror, Li-ion battery, inductive charging on the dock (answered). Projector: the Ultimems HD309D1-C1, being sourced. **Does the fold mirror suit it, and does it run well outside its 0–35 °C, 40–60% humidity rating?** | Heat, vents, and the head's layout (section 4). |
 | Q4 | 3-axis from the start, or 2-axis first and 3-axis later? | Same hardware. Only commissioning order changes. |
 | Q5 | Option A (closed-loop steppers with brakes) or Option B (ODrive brushless with torque control)? | Cost, tuning effort and how tension is managed. A is the lead choice. Phase 3 tests one of each and decides. |
 | Q6 | How fast should it fly at most? | Sets drum size and motor choice. 0.3 m/s is assumed. |
