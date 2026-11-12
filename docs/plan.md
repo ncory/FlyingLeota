@@ -637,17 +637,47 @@ What that means for the head:
 | 5 V regulator losses (about 90% efficient) | about 1 W |
 | **Total from the battery** | **about 8–12 W (13 W at peak)** |
 
-**Battery: 60–75 Wh, at the bottom of the ball.** 4 hours at 12 W is 48 Wh. Add 25% for
-ageing and cold nights: 60 Wh. That's 0.4–0.5 kg of lithium-ion, and weight at the bottom
-is the good kind (section 4). A full-evening pack still makes sense: nobody has to open the
-ball, and the dock is a convenience the show doesn't depend on.
+**Battery: about 50–75 Wh, at the bottom of the ball.** 4 hours at 12 W is 48 Wh; at a
+typical 10 W, 40 Wh. Add margin for ageing and cold nights. Weight at the bottom is the
+good kind (section 4). A full-evening pack still makes sense: nobody has to open the ball,
+and the dock is a convenience the show doesn't depend on.
 
-Two ways to build it, to settle in H3:
+#### Battery options
 
-- **1S** (cells all in parallel, 3.0–4.2 V), boosted to 5 V. For example, four 21700 cells
-  make about 72 Wh. Most charger, fuel gauge and Pi "UPS" boards are made for this.
-- **2S** (two in series, 6–8.4 V), stepped down to 5 V. It runs cooler at 3 A, but fewer
-  ready-made boards suit it.
+What the battery system has to do: give a steady 5 V at 3 A or more; keep it steady while
+charging starts and stops; charge from the inductive receiver; read its charge on I²C;
+turn the Pi on when charging starts and shut it down cleanly when nearly empty; and refuse
+to charge when too cold or too hot.
+
+| Option | Energy | Weight (cells or pack) | For | Against |
+| --- | --- | --- | --- | --- |
+| **A. Geekworm X1202 + four 18650 cells** (lithium-ion, cells in parallel) | about 50 Wh with 3.5 Ah cells | about 0.2 kg of cells, plus the board | Ready-made. 5.1 V, 5 A out. Charges at 2.3–3.2 A from a 6–18 V DC input, so a 12 V inductive receiver plugs straight in. A GPIO says when outside power is lost (the "docked and charging" signal), turns the Pi on when power comes back, and shuts it down at a set low battery voltage. Reads the battery on I²C. | Just enough for 4 hours at 12 W, comfortable at 10 W. Made to sit under a Pi 5: for the Zero 2 W, wire its 5 V, ground, I²C and GPIO across. Check which battery chip it has in its wiki. |
+| **B. A 1S pack of four 21700 cells** with a board that takes them (Waveshare UPS HAT (E), or a charger and gauge of our own) | about 72 Wh with 5 Ah cells | about 0.3 kg of cells | The most energy for the weight. | The Waveshare board charges over USB-C PD, which an inductive receiver doesn't speak; at plain 5 V it charges slowly. A board of our own (a charger with power path, such as TI's BQ25895, and a gauge such as Maxim's MAX17260) fits exactly but is real electronics work. |
+| **C. A 12.8 V LiFePO4 pack** (lithium iron phosphate, four cells in series, with its own protection board) | 64 Wh (5 Ah) to 77 Wh (6 Ah) | about 0.7–1.0 kg, for example 90 × 70 × 107 mm for 5 Ah | **The safest chemistry:** far less prone than lithium-ion to catching fire when damaged or overcharged. Long life (2,000 cycles and more). | Heavier: 0.4–0.7 kg more than A or B. Needs a 5 V step-down converter, a 14.6 V LiFePO4 charger (or a charging module set up for it), and coulomb counting for the charge level (an I²C current monitor such as TI's INA228): its voltage stays nearly flat, so voltage alone says little. The most to build. |
+
+Not enough on their own: the PiSugar 3 Plus (5,000 mAh, about 18 Wh: a quarter of a night)
+and the LiFePO4wered/Pi+ (LiFePO4, but 2 A at most: 10 W, under the head's peak).
+
+Cells: buy name-brand cells (Samsung, LG, Molicel, Sony/Murata) from a reputable seller;
+fakes are common. For example the Samsung INR21700-50S is 5,000 mAh and 72 g.
+
+**Safety.** This battery flies over the audience's view, sealed in a ball. Whichever
+option:
+
+- A fuse on the battery's output, and a temperature sensor on the cells.
+- The cells in a small metal box or a fire-resistant battery bag, away from the charging
+  coil's heat.
+- No charging below 0 °C or above about 45 °C.
+- Nobody under the ball (section 7 already says so), and an inspection after any hard
+  landing or drop.
+
+**Recommendation.** For the bench (H3), option A: the X1202, four good 18650 cells, and a
+12 V inductive receiver straight into its DC input. That's the whole chain, cheap and
+ready-made: charging, power path, battery reading, the docked signal, auto power-on and
+shutdown. It answers the questions that matter first: run time, charging while playing,
+heat, and no glitch on landing or lift-off. For the show, decide once the head is weighed
+(H4): if there's room for the extra half kilogram, option C's safer chemistry is worth it
+in a sealed ball over a stage; if not, option A or B with the safety points above.
 
 #### Inductive charging on the dock
 
@@ -676,8 +706,8 @@ flowchart LR
   charging has to outrun the load: about 12 W into the battery while the head uses 10 W.
   That's about 25 W out of the receiver and 35 W into the transmitter. Phone-style Qi
   (5–15 W) can't keep up. Use an industrial wireless power kit of 25–50 W, rated for a
-  gap of 10 mm or more. From empty, with the head asleep, a 60–75 Wh pack fills in 3–4
-  hours. (If the head shows a blank face while docked outside a show, a 15 W kit would do.)
+  gap of 10 mm or more (see "Charging products" below). From empty, with the head
+  asleep, a 50–75 Wh pack fills in 3–4 hours. (If the head shows a blank face while docked outside a show, a 15 W kit would do.)
 - **Lining up.** The dock's cup centres the ball, so the coils sit within a few
   millimetres of each other. Round coils don't care how the ball has turned. The gap is
   the ball's acrylic wall plus the cup's surface: measure the wall. The sphere curves less
@@ -726,18 +756,40 @@ The dock and the ball each know something the other doesn't:
   touchscreen and Show Controller are the indicators. A small light on the pedestal's
   base could glow while charging, and stay dark during shows.
 
-Parts to look at (examples, not choices):
+#### Charging products
 
-- **Wireless power:** 24 V industrial transmitter and receiver pairs with 25–50 W out (for
-  example Würth Elektronik's wireless power kits). Check the gap they allow, their
-  efficiency, and whether they detect metal on the pad.
-- **Charger:** a 1S power-bank charger chip with power path, I²C status and a 5 V boost
-  that gives 3 A (TI BQ25895 class), or a ready-made Pi battery board with the same. For
-  the bench, a ready-made board is quicker.
-- **Fuel gauge:** a 1S gauge on I²C (Maxim MAX17260 or TI BQ27441 class), if the board
-  has none.
+What the dock needs: about 25 W into the ball, from 24 V, across the acrylic wall and the
+cup's surface with room to spare, tolerant of a little misalignment, and ideally able to
+detect metal on the pad. Researched November 2026; check prices and availability before
+buying.
+
+| Product | Power | Gap and alignment | Extras | Notes |
+| --- | --- | --- | --- | --- |
+| **ONEPOINTECH TD01** (transmitter and receiver set) | 24 V / 4 A in, 21 V / 3 A out: about 60 W | 15–35 mm, ±10 mm | Detects metal on the pad. Over-current, over-voltage and over-temperature protection. UART or RS-485 data. Rated −20 to 55 °C. Up to 91% efficient. | **Best fit for the show.** Coils 100 × 100 mm, boards 90 × 90 mm: check they fit the base fitting. Output customizable: ask for 12 V to suit a 6–18 V battery board. Not CE certified. Priced by quote; single evaluation sets sold. |
+| **Taidacent-type module pairs** | 24 V in, 12 V / 2 A out: about 24 W | Listings say 8–18 mm, others 9 mm or 5–14 mm; output sags with distance and misalignment | None | **For the bench.** About $30–50. No metal detection and no data. Good for H3: heat, the projector next to a charging coil, landing and lift-off. |
+| **ST STEVAL-WBC2TX50 + STEVAL-WLC98RX** (evaluation boards) | Up to 50 W (ST's own protocol), also Qi 5 W and 15 W | A Qi-style small gap; ST says its receiver stretches the distance by up to 50% | Carries data both ways over the charging link. | About $110 each at launch (2024). Transmitter takes 5–20 V, so the dock needs a converter from 24 V. Evaluation boards set up with ST's software, not a finished product. |
+| Balluff inductive couplers | 24 V at 0.5 A: about 12 W | 0–5 mm | Rugged (IP67), carries data | Not a fit: too little power, too small a gap. |
+| Würth Elektronik / Infineon 200 W kit | 200 W | | Data from receiver to transmitter | Not a fit: far more than needed, and Würth's page says it can no longer be ordered. |
+| WiBotic | 150–300 W systems | | Fleet monitoring of charge and battery health | Not a fit: made for large robots and drones; pricing by quote. |
+
+**Suggestion:** buy a Taidacent pair now for H3, and ask ONEPOINTECH to quote a TD01
+evaluation set with a 12 V output. Measure the ball's wall thickness first. With either,
+check how far the field reaches: the projector sits 15–25 cm above the coil.
+
+Other parts:
+
+- **Fuel gauge:** a 1S gauge on I²C (Maxim MAX17260 or TI BQ27441 class), if the battery
+  board has none; for LiFePO4, an I²C current monitor and counting.
 - **On the dock:** an I²C power monitor (TI INA226 class) on the controller's bus, and a
   MOSFET switch on the transmitter's 24 V.
+
+Sources for the products above (November 2026): ONEPOINTECH
+(onepointech.com/wireless-charging-solutions), Taidacent listings on Amazon, ST's 50 W boards
+(cnx-software.com, May 2024), Balluff (balluff.com, inductive couplers), Würth Elektronik
+(we-online.com, 200 W kit), WiBotic (therobotreport.com), Geekworm's X1202 wiki
+(wiki.geekworm.com/X1202), Waveshare's UPS HAT (E) wiki, PiSugar (tindie.com),
+LiFePO4wered/Pi+ (Silicognition, cnx-software.com), Samsung INR21700-50S (akkuteile.de), and
+12.8 V LiFePO4 pack datasheets (RPower LFP1250, LiTech).
 
 #### Other points
 
@@ -1056,7 +1108,7 @@ flowchart LR
 | --- | --- | --- |
 | H1. The sphere | Weigh this year's 14 in ball and measure its wall. If a new ball is needed (a hole at the top for the fitting, a base fitting), buy it early: it sets the fittings. | Sphere weight, and the top fitting design. |
 | H2. Projector | Pi Zero 2 W, the HD309D1-C1, a mirror and a face blank on the bench. Brightness, throw, heat, power draw. 720p through the Show Controller follower. The picture with the ball shaken and next to a charging coil. Ask Ultimems about the fold mirror. | The projector, and the power budget. |
-| H3. Power | Battery, charger with power path, fuel gauge. Measure a 4-hour run. An inductive kit through a piece of the ball's acrylic: power, heat, and the projector's picture while charging. Docking and lifting while video plays. Temperature and humidity inside the closed ball on a warm day and a cold night. | Battery size (1S or 2S), the charging kit, no reboots on docking, whether the ball needs vents. |
+| H3. Power | Battery board, cells and a fuel gauge (battery option A in section 4, to start), with a Taidacent-type inductive pair. Measure a 4-hour run. An inductive kit through a piece of the ball's acrylic: power, heat, and the projector's picture while charging. Docking and lifting while video plays. Temperature and humidity inside the closed ball on a warm day and a cold night. | Battery size (1S or 2S), the charging kit, no reboots on docking, whether the ball needs vents. |
 | H4. Weigh it | The full head on the spine, with wig, projector and battery. Weight, and where the center of weight is. | Payload: the final line size, and the lean model's real numbers. |
 
 ### What to buy now
