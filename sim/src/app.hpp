@@ -65,6 +65,7 @@ private:
     long commands_ = 0;
     bool sensor_on_ = true;
     double snag_ = 0.0;       // N, a sideways pull on the ball
+    double ball_charge_ = 60.0, last_step_ = -1.0;  // %, the ball's battery
     std::string last_message_;
     std::deque<std::string> log_;
 #ifdef LEOTA_SIM_UI

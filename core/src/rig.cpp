@@ -445,6 +445,12 @@ void Rig::update(double now) {
 void Rig::tick() {
     const double dt = cfg_.control_period;
     read_feedback();
+    if (++dock_count_ >= 10) {  // the dock's charger, every 10 ms: on only while seated and disarmed
+        dock_count_ = 0;
+        dock_.update(hw_, cfg_.charger, on_dock(), !armed_ && state_ != RigState::Arming, now_);
+        std::string news = dock_.take_news();
+        if (!news.empty()) message_ = std::move(news);
+    }
     if (hw_.estop_open()) {
         estop_ = true;
         if (state_ != RigState::EStop) enter_estop();

@@ -53,6 +53,10 @@ whole rig), then fly.
 - **Wind:** a speed that wanders around the set value. It feeds the wind sensor twice a
   second, and pushes on the ball from the open front (toward +y) with the drag of a 14 in
   sphere.
+- **The dock's charger and the ball's battery:** the charger draws 0.8 W with nothing on
+  it, 20 W with the ball charging and 1 W once it's full; metal on the pad adds 30 W. The
+  ball's 60 Wh battery drains at 10 W away from the dock and gains 5 W net while charging.
+  It starts at 60%.
 
 **Trying the calibration check:** start with `--pulley-error 80 --real-mass 4.6`. On the
 touchscreen: arm, home, turn remote off, then Setup (PIN 1234), Measurements, Check by
@@ -77,8 +81,10 @@ the weight's end is, to work out the rise. **Hook back on** when done.
   off, as on the real touchscreen.
 - **Make things happen:** press and release the E-stop, change the wind and gustiness,
   unplug the wind sensor, snag the ball with a 60 N pull, cut or mend a line, raise a drive
-  alarm, unhook a line and hang a weight on it, or reset everything.
-- **Lines, wind, the Show Controller link, and a log** of commands and what the rig said.
+  alarm, unhook a line and hang a weight on it, put metal on the dock's pad, set the
+  ball's battery, or reset everything.
+- **Lines, wind, the dock and the ball's battery, the Show Controller link, and a log** of
+  commands and what the rig said.
 - **Touchscreen:** the Touchscreen button, beside the view buttons, swaps the 3-D view for the controller's real
   touchscreen (`ui/`), drawn by LVGL in the simulator. Click to tap; hold to hold.
 

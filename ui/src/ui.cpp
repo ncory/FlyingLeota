@@ -280,7 +280,7 @@ struct Ui::Impl {
     std::array<lv_obj_t*, kLines> line_bar{}, line_value{}, line_len{};
     lv_obj_t *wind_now = nullptr, *wind_gust = nullptr, *wind_level = nullptr, *wind_level_text = nullptr,
              *wind_level_dot = nullptr;
-    std::array<lv_obj_t*, 5> sys_value{};
+    std::array<lv_obj_t*, 6> sys_value{};
 
     // Controls
     lv_obj_t *key_note = nullptr, *remote_text = nullptr, *remote_btn = nullptr, *arm_title = nullptr,
@@ -594,10 +594,10 @@ struct Ui::Impl {
 
         lv_obj_t* sys = card(p, 759, 206, 249, 240);
         text(sys, 16, 12, "System", &leota_inter_20_bold);
-        const char* keys[5] = {"E-stop chain", "Drives", "Brakes", "Homed", "Faults"};
-        for (int i = 0; i < 5; ++i) {
-            text(sys, 16, 50 + i * 34, keys[i], &leota_inter_14, kMuted);
-            sys_value[i] = text(sys, 110, 49 + i * 34, "", &leota_inter_16_semi);
+        const char* keys[6] = {"E-stop chain", "Drives", "Brakes", "Homed", "Faults", "Dock"};
+        for (int i = 0; i < 6; ++i) {
+            text(sys, 16, 47 + i * 30, keys[i], &leota_inter_14, kMuted);
+            sys_value[i] = text(sys, 110, 46 + i * 30, "", &leota_inter_16_semi);
             lv_obj_set_width(sys_value[i], 123);
             lv_obj_set_style_text_align(sys_value[i], LV_TEXT_ALIGN_RIGHT, 0);
             lv_label_set_long_mode(sys_value[i], LV_LABEL_LONG_DOT);
@@ -641,6 +641,20 @@ struct Ui::Impl {
         set_text_color(sys_value[3], rig.homed() ? kGreenInk : kAmberSoft);
         set(sys_value[4], fault_names().empty() ? "None" : fault_names());
         set_text_color(sys_value[4], rig.faults() ? kRedSoft : kGreenInk);
+        const DockCharger& dock = rig.dock();
+        std::string d = "No charger";
+        uint32_t dc = kMuted;
+        if (dock.fitted()) {
+            switch (dock.state()) {
+                case DockState::Charging: d = fmt("Charging %.0f W", dock.watts()); dc = kGreenInk; break;
+                case DockState::Charged: d = "Charged"; dc = kGreenInk; break;
+                case DockState::Off: d = "Off"; dc = kInk; break;
+                case DockState::Empty: d = "Empty"; dc = kMuted; break;
+                case DockState::Fault: d = "FAULT"; dc = kRedSoft; break;
+            }
+        }
+        set(sys_value[5], d);
+        set_text_color(sys_value[5], dc);
     }
 
     std::string fault_names() const {

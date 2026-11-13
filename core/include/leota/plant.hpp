@@ -22,6 +22,18 @@ public:
     std::array<LineFeedback, kLines> feedback() override;
     bool estop_open() override { return estop_; }
 
+    // A charging dock, if fitted: switched off it draws nothing; on with nothing on its pad,
+    // 0.8 W; with the ball resting on it, 20 W until the ball's battery is full, then 1 W.
+    // Something metal on the pad adds 30 W.
+    bool dock_fitted() override { return dock_fitted_; }
+    void set_dock_power(bool on) override { dock_on_ = on; }
+    double dock_watts() override;
+    void fit_dock(bool on) { dock_fitted_ = on; }
+    bool dock_on() const { return dock_on_; }
+    void set_ball_full(bool full) { ball_full_ = full; }
+    void set_metal_on_pad(bool on) { metal_ = on; }
+    bool metal_on_pad() const { return metal_; }
+
     // Things a test can do to it
     void set_estop(bool open) { estop_ = open; if (open) enabled_ = released_ = false; }
     void set_alarm(int line, bool on) { alarm_[line] = on; }
@@ -68,6 +80,7 @@ private:
     bool enabled_ = false, released_ = false, estop_ = false;
     bool resting_ = true, fell_ = false, dirty_ = true;
     double noise_ = 0.0;
+    bool dock_fitted_ = false, dock_on_ = false, ball_full_ = false, metal_ = false;
     unsigned noise_state_ = 12345u;
 };
 

@@ -127,6 +127,15 @@ dialog::backdrop { background: rgba(5,7,10,.75); }
     </section>
 
     <section>
+      <h2>Dock and ball battery</h2>
+      <div class="kv" id="dock"></div>
+      <div class="row">
+        <button id="metalBtn">Put metal on the pad</button>
+        <button id="chargeLowBtn">Ball battery 20%</button><button id="chargeFullBtn">Ball battery full</button>
+      </div>
+    </section>
+
+    <section>
       <h2>Make things happen</h2>
       <div class="row"><button id="estopBtn">Press E-stop</button><button id="snagBtn">Snag the ball</button></div>
       <div class="row"><label style="min-width:84px">Wind <span id="windVal" class="num"></span></label>
@@ -224,6 +233,11 @@ function render() {
   $('#estopBtn').textContent = S.estop ? 'Release E-stop and reset' : 'Press E-stop';
   $('#estopBtn').classList.toggle('stop', !S.estop);
   $('#snagBtn').textContent = S.snag > 0 ? 'Free the snag' : 'Snag the ball';
+  const dk = S.dock;
+  $('#dock').innerHTML = [['Dock', dk.state + (dk.state === 'charging' || dk.state === 'charged' ? ' · ' + dk.watts.toFixed(1) + ' W' : '')],
+    ['Charger', dk.on ? 'switched on' : 'switched off'], ['On the pad', dk.metal ? 'metal' : 'nothing else'],
+    ['Ball battery', Math.round(S.ball_charge) + '%']].map(([k, v]) => `<span>${k}</span><span>${v}</span>`).join('');
+  $('#metalBtn').textContent = dk.metal ? 'Take the metal off the pad' : 'Put metal on the pad';
   document.querySelectorAll('[data-jog="1,1"],[data-jog="1,-1"]').forEach(el => el.disabled = S.config.two_axis);
 
   const max = S.config.tension_max;
@@ -270,6 +284,9 @@ $('#stopBtn').onclick = () => act({ do: 'stop' });
 $('#goBtn').onclick = () => act({ do: 'goto', x: +$('#gx').value, y: +$('#gy').value, z: +$('#gz').value, duration: +$('#gs').value });
 $('#estopBtn').onclick = () => act({ do: 'estop', on: !S.estop });
 $('#snagBtn').onclick = () => act({ do: 'snag', force: S.snag > 0 ? 0 : 60 });
+$('#metalBtn').onclick = () => act({ do: 'metal', on: !S.dock.metal });
+$('#chargeLowBtn').onclick = () => act({ do: 'ball_charge', percent: 20 });
+$('#chargeFullBtn').onclick = () => act({ do: 'ball_charge', percent: 100 });
 $('#windSlider').oninput = (e) => act({ do: 'wind', speed: +e.target.value });
 $('#gustSlider').oninput = (e) => act({ do: 'wind', gusty: +e.target.value });
 $('#pushBox').onchange = (e) => act({ do: 'wind', push: e.target.checked });

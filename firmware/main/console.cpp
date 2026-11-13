@@ -21,6 +21,7 @@
 #include "anemometer.hpp"
 #include "app.hpp"
 #include "board_io.hpp"
+#include "dock_io.hpp"
 #include "drives.hpp"
 #include "esp_console.h"
 #include "esp_log.h"
@@ -33,6 +34,7 @@ namespace fw {
 
 extern BoardIo g_io;
 extern LoadCells g_cells;
+extern DockIo g_dock;
 extern NvsStore g_store;
 
 namespace {
@@ -101,6 +103,13 @@ int cmd_inputs(int, char**) {
     if (g_cells.fitted())
         std::printf("Load cells: %lu readings, last %lu ms ago\n", static_cast<unsigned long>(g_cells.readings()),
                     static_cast<unsigned long>(g_cells.stale_ms()));
+    if (g_dock.fitted())
+        std::printf("Dock charger: %s, drawing %.1f W%s\n", g_dock.power() ? "on" : "off", g_dock.watts(),
+                    g_dock.reading() ? "" : " (its power monitor isn't answering)");
+    else
+        std::printf("Dock charger: none set%s\n", app().drives && std::string(app().drives->kind()) == "simulated rig"
+                                                       ? " (the simulated rig has its own)"
+                                                       : "");
     double age = -1;
     const double w = anemometer_last(&age);
     if (w < 0) std::printf("Anemometer: no reading%s\n", anemometer_fitted() ? "" : " (none set)");

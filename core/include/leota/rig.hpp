@@ -12,6 +12,7 @@
 #include <string>
 
 #include "leota/config.hpp"
+#include "leota/dock.hpp"
 #include "leota/geometry.hpp"
 #include "leota/hardware.hpp"
 #include "leota/profile.hpp"
@@ -116,6 +117,7 @@ public:
     // What each drive and load cell reports before the corrections in config().sensors.
     const std::array<LineFeedback, kLines>& raw_feedback() const { return raw_; }
     const WindMonitor& wind() const { return wind_; }
+    const DockCharger& dock() const { return dock_; }
     const RigConfig& config() const { return cfg_; }
     double now() const { return now_; }
 
@@ -150,6 +152,8 @@ private:
     RigConfig cfg_;
     Hardware& hw_;
     WindMonitor wind_;
+    DockCharger dock_;
+    int dock_count_ = 0;
     std::array<AxisMotion, kAxes> axes_;
     int window_ = 1;
 

@@ -7,6 +7,7 @@
 #include <string>
 
 #include "board_io.hpp"
+#include "dock_io.hpp"
 #include "leota/config.hpp"
 #include "leota/hardware.hpp"
 #include "load_cells.hpp"
@@ -21,6 +22,17 @@ public:
     // disarmed. Only step/dir drives have it.
     virtual bool can_bench() const { return false; }
     virtual void bench_command(int /*line*/, double /*mm*/) {}
+
+    // The dock's charger, the same whatever the drives.
+    void attach_dock(DockIo* dock) { dock_ = dock; }
+    bool dock_fitted() override { return dock_ && dock_->fitted(); }
+    void set_dock_power(bool on) override {
+        if (dock_) dock_->set_power(on);
+    }
+    double dock_watts() override { return dock_ ? dock_->watts() : 0.0; }
+
+protected:
+    DockIo* dock_ = nullptr;
 };
 
 std::unique_ptr<Drives> make_drives(const leota::RigConfig& cfg, BoardIo& io, LoadCells& cells);

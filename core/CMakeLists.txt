@@ -20,7 +20,8 @@ add_library(leota_core
   src/scmp.cpp
   src/settings.cpp
   src/calibration.cpp
-  src/line_test.cpp)
+  src/line_test.cpp
+  src/dock.cpp)
 target_include_directories(leota_core
   PUBLIC include
   PRIVATE third_party/ArduinoJson)
@@ -46,7 +47,8 @@ if(LEOTA_TESTS)
     tests/test_scmp.cpp
     tests/test_settings.cpp
     tests/test_calibration.cpp
-    tests/test_sensors.cpp)
+    tests/test_sensors.cpp
+    tests/test_dock.cpp)
   target_include_directories(leota_core_tests PRIVATE third_party/doctest third_party/ArduinoJson tests)
   target_link_libraries(leota_core_tests PRIVATE leota_core leota_plant)
   add_test(NAME leota_core_tests COMMAND leota_core_tests)

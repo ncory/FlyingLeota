@@ -205,6 +205,14 @@ void Plant::solve() {
     }
 }
 
+double Plant::dock_watts() {
+    if (!dock_fitted_ || !dock_on_) return 0.0;
+    solve();
+    double w = resting_ ? (ball_full_ ? 1.0 : 20.0) : 0.8;
+    if (metal_) w += 30.0;
+    return w;
+}
+
 double Plant::hang_height(int i) {
     const double out = zero_[i] + pos_[i];
     const double t = hang_kg_[i] * kGravity;

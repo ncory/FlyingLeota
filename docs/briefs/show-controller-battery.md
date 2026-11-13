@@ -1,5 +1,11 @@
 # Brief for Show Controller: the ball's battery
 
+**Done.** Show Controller built both (ncory/BEDShowController fcff52d, November 2026): battery
+reporting as "Battery-powered units" (design section 9), and the `dock` field exactly as
+proposed. FlyingLeota's controller, `leota-sim` and `sim/tests` send and test the `dock`
+field. Tell Show Controller which gauge and battery board the ball ends up with: its I²C
+drivers are untested on hardware.
+
 From the Flying Leota work (repo ncory/FlyingLeota), for whoever is building Show
 Controller. Nate asked for this to be passed on. It proposes two things; Show
 Controller's design decisions are its own, so treat both as proposals.

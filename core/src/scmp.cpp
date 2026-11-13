@@ -127,6 +127,11 @@ void fill_status(const Rig& rig, JsonObject s) {
         o["swing"] = round_to(l.swing, 0.1);
     }
     if (!rig.message().empty()) s["message"] = rig.message();
+    if (rig.dock().fitted()) {
+        JsonObject dock = s["dock"].to<JsonObject>();
+        dock["state"] = dock_state_name(rig.dock().state());
+        dock["watts"] = round_to(rig.dock().watts(), 0.1);
+    }
 
     const Vec3 p = rig.position(), v = rig.velocity();
     const double pos[kAxes] = {p.x, p.y, p.z}, vel[kAxes] = {v.x, v.y, v.z};
@@ -345,6 +350,7 @@ std::string ScmpServer::signature() const {
     s += static_cast<char>('0' + static_cast<int>(rig_.state()));
     s += static_cast<char>('0' + static_cast<int>(rig_.wind().level()));
     s += std::to_string(rig_.faults());
+    s += static_cast<char>('0' + static_cast<int>(rig_.dock().state()));  // a dock change is news
     return s;
 }
 

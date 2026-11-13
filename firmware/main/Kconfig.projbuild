@@ -139,6 +139,26 @@ menu "Flying Leota"
                 High releases the brakes (through a relay). Low, or no power, grips.
     endmenu
 
+    menu "Dock charger"
+        config LEOTA_DOCK_SWITCH_PIN
+            int "Charger switch output GPIO (-1: no dock charger)"
+            default -1
+            help
+                High turns the dock's inductive transmitter on (a MOSFET on its 24 V).
+        config LEOTA_DOCK_SDA_PIN
+            int "Power monitor (INA226) I2C SDA GPIO"
+            default -1
+        config LEOTA_DOCK_SCL_PIN
+            int "Power monitor (INA226) I2C SCL GPIO"
+            default -1
+        config LEOTA_DOCK_INA226_ADDR
+            hex "Power monitor I2C address"
+            default 0x40
+        config LEOTA_DOCK_SHUNT_MOHM
+            int "Power monitor shunt resistor (milliohms)"
+            default 10
+    endmenu
+
     menu "Load cells (HX711)"
         config LEOTA_HX711_SCK_PIN
             int "Shared clock GPIO (-1: no load cells)"

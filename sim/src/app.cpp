@@ -1,5 +1,6 @@
 #include "app.hpp"
 
+#include <algorithm>
 #include <cmath>
 #include <cstdio>
 #include <ctime>
@@ -93,6 +94,7 @@ void SimApp::build() {
     truth_.lines[0].anchor += Vec3{opt_.pulley_error, -opt_.pulley_error, 0};
     if (opt_.real_mass > 0) truth_.mass = opt_.real_mass;
     plant_ = std::make_unique<Plant>(truth_);
+    plant_->fit_dock(true);  // the dock's inductive charger, with the ball's battery below
     if (opt_.sensor_error)  // drives and load cells that don't read quite true
         plant_->set_sensors({{{1.015, 2.5, 0.96}, {0.99, -1.8, 1.03}, {1.02, 3.1, 0.98}, {0.985, -2.2, 1.05}}});
     rig_ = std::make_unique<Rig>(keeper_->settings().rig, *plant_);
@@ -165,6 +167,17 @@ std::string SimApp::step(double now) {
     const double area = kPi * truth_.ball_radius * truth_.ball_radius / 1e6;
     plant_->push({0.0, 0.5 * 1.2 * v * v * 0.47 * area - snag_, 0.0});
     rig_->update(now);
+    // The ball's battery, 60 Wh. Away from the dock the head uses about 10 W. On a working
+    // charger, the charger runs the head and puts about 5 W more into the battery (20 W in,
+    // 75% of it through), until it's full.
+    if (last_step_ > 0) {
+        const double dt = now - last_step_;
+        const bool charging = plant_->dock_on() && plant_->resting() && !plant_->metal_on_pad();
+        const double net = charging ? 5.0 : -10.0;
+        ball_charge_ = std::min(100.0, std::max(0.0, ball_charge_ + net * dt / 3600.0 / 60.0 * 100.0));
+        plant_->set_ball_full(ball_charge_ >= 99.5);
+    }
+    last_step_ = now;
     if (rig_->message() != last_message_) {
         last_message_ = rig_->message();
         log(now, last_message_);
@@ -257,6 +270,12 @@ std::string SimApp::state_json(double now) {
     sc["commands"] = commands_;
     sc["scmp_port"] = opt_.scmp_port;
     d["snag"] = snag_;
+    JsonObject dock = d["dock"].to<JsonObject>();
+    dock["state"] = dock_state_name(r.dock().state());
+    dock["watts"] = std::round(r.dock().watts() * 10) / 10;
+    dock["on"] = plant_->dock_on();
+    dock["metal"] = plant_->metal_on_pad();
+    d["ball_charge"] = std::round(ball_charge_ * 10) / 10;
     JsonObject c = d["config"].to<JsonObject>();
     const RigConfig& cfg = r.config();
     c["ball_radius"] = truth_.ball_radius;
@@ -316,6 +335,13 @@ std::string SimApp::action(const std::string& body, double now) {
             sensor_on_ = in["sensor"].as<bool>();
             said = sensor_on_ ? "Wind sensor reconnected" : "Wind sensor unplugged";
         }
+    } else if (what == "metal") {
+        const bool on = in["on"] | true;
+        plant_->set_metal_on_pad(on);
+        said = on ? "Something metal is put on the dock's pad" : "The metal is taken off the dock's pad";
+    } else if (what == "ball_charge") {
+        ball_charge_ = std::min(100.0, std::max(0.0, in["percent"] | ball_charge_));
+        said = "The ball's battery is set to " + std::to_string(static_cast<int>(ball_charge_)) + "%";
     } else if (what == "snag") {
         snag_ = in["force"] | 0.0;
         said = snag_ > 0 ? "Something snags the ball" : "The snag lets go";

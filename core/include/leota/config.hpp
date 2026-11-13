@@ -43,6 +43,19 @@ struct LineSensors {
     double load_scale = 1.0;  // real N per N it reads above its zero
 };
 
+// The dock's charger (docs/plan.md, section 4: inductive charging). The controller turns it
+// on only while the ball rests on the dock and the rig is disarmed, and tells what it's
+// doing from the power it draws.
+struct DockConfig {
+    double charging_w = 3.0;    // W: drawing more, the ball is charging; less, it's charged
+    double empty_w = 1.5;       // W: the most the charger draws with nothing on its pad
+    double max_w = 45.0;        // W: drawing more is a fault (something metal on the pad?)
+    double settle = 2.0;        // s after switching on before its reading counts
+    double probe_every = 30.0;  // s: while the ball is away, check the pad is empty this often (0: never)
+    double probe_time = 1.0;    // s: how long each check switches the charger on
+    double retry = 60.0;        // s: after an overload, wait this long before trying again
+};
+
 struct WindConfig {
     bool enabled = true;         // false: no wind sensor fitted (bench tests)
     double amber = 7.0;          // m/s: a gust at or above this is Amber
@@ -106,6 +119,7 @@ struct RigConfig {
     double park_sink = 0.0;          // mm below the dock height when setting down
 
     WindConfig wind;
+    DockConfig charger;  // the dock's charger
 };
 
 // The 2026 site: a gazebo with posts 91 in apart, pulleys at 79 in, a 14 in ball

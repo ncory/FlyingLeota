@@ -18,7 +18,15 @@ namespace {
 
 class SimDrives : public Drives {
 public:
-    SimDrives(const leota::RigConfig& cfg, BoardIo& io) : plant_(cfg), io_(io) {}
+    SimDrives(const leota::RigConfig& cfg, BoardIo& io) : plant_(cfg), io_(io) { plant_.fit_dock(true); }
+
+    // A real dock charger if one is wired; else the simulated rig's own.
+    bool dock_fitted() override { return true; }
+    void set_dock_power(bool on) override {
+        if (dock_ && dock_->fitted()) dock_->set_power(on);
+        else plant_.set_dock_power(on);
+    }
+    double dock_watts() override { return dock_ && dock_->fitted() ? dock_->watts() : plant_.dock_watts(); }
 
     const char* kind() const override { return "simulated rig"; }
 

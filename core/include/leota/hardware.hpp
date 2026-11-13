@@ -29,6 +29,12 @@ public:
     virtual void command(const std::array<double, kLines>& positions) = 0;
     virtual std::array<LineFeedback, kLines> feedback() = 0;
     virtual bool estop_open() = 0;                   // the hardware chain, read back
+
+    // A charging dock (an inductive charger under the pedestal), if one is wired to the
+    // controller: switching it, and what it draws, in watts. Without one, these do nothing.
+    virtual bool dock_fitted() { return false; }
+    virtual void set_dock_power(bool /*on*/) {}
+    virtual double dock_watts() { return 0.0; }
 };
 
 }  // namespace leota

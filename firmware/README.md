@@ -72,6 +72,15 @@ which are the board's own. Check them against the board's header before wiring.
   counts as a drive fault.
 - **Local/Remote key** input, if fitted.
 
+## Dock charger
+
+menuconfig: Flying Leota, Dock charger. A switch output for the inductive transmitter's
+24 V (through a MOSFET), and a TI INA226 power monitor in its feed, on its own I²C bus
+(port 0; the touch panel has port 1), read 10 times a second. The core decides when it's on
+and what the power means (core `dock.hpp`); SCMP status carries it as `dock`, and the
+touchscreen's Status screen shows it. With the simulated rig and no dock pins set, the
+simulated dock stands in.
+
 ## The bench console
 
 `idf.py monitor`, then:
@@ -80,7 +89,7 @@ which are the board's own. Check them against the board's header before wiring.
 | --- | --- |
 | `status` | The rig, each line, the wind and the network. |
 | `timing` | How long the motion cycles take, how late they wake, and the longest wait for the rig lock. `timing reset` starts again. |
-| `inputs` | E-stop, key, alarms, raw load cell counts, the anemometer. |
+| `inputs` | E-stop, key, alarms, raw load cell counts, the dock charger's power, the anemometer. |
 | `drives` | Step counts per line, or each ODrive's state, errors and position. |
 | `rig arm` … | `arm`, `disarm`, `home`, `park`, `stop`, `clear`, `remote on`/`off`. |
 | `steps A 200 100` | Step/dir only, on the bench: line A out 200 mm at 100 mm/s and back, brakes released. Refused if the rig is armed or has been homed. |
@@ -97,6 +106,7 @@ its step pin: `steps`, while tapping the screen and with Show Controller sending
 | `main/main.cpp` | Start-up order, the rig lock. |
 | `main/motion.cpp` | The 1 ms timer and motion task, timing figures, the bench hook. |
 | `main/board_io.cpp` | E-stop, key, enable and pump, brakes, alarms. |
+| `main/dock_io.cpp` | The dock charger's switch and INA226 power monitor. |
 | `main/drives_sim.cpp`, `drives_stepdir.cpp`, `drives_odrive.cpp` | The three kinds of drive. |
 | `main/load_cells.cpp`, `anemometer.cpp` | The sensors. |
 | `main/network.cpp` | Ethernet (DHCP or Setup's fixed address) and SCMP. |

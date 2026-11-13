@@ -213,11 +213,17 @@ async def test_show_controller_shows_what_the_controller_reports(sim, tmp_path):
         assert [l["line"] for l in st["lines"]] == ["A", "B", "C", "D"]
         assert st["message"].startswith("Started.")
 
+        # The dock's charger: on while the ball rests on it and the rig is disarmed.
+        dock = lambda: dev().status()["dock"] or {}  # noqa: E731
+        await wait(lambda: dock().get("state") == "charging" and dock().get("watts") == 20.0, 5)
+
         await sc.bus.run("motion.arm", {"device": "leota"})
         await wait(lambda: sim.state()["state"] == "ARMED", 3)
+        await wait(lambda: dock().get("state") == "off", 3)
         await sc.bus.run("motion.home", {"output": "leader/leota-z"})
         await wait(lambda: sim.state()["homed"] and sim.state()["state"] == "ARMED", 40)
         await wait(lambda: all(l["tension"] > 5 for l in dev().status()["lines"]), 3)
+        await wait(lambda: dock().get("state") == "empty", 3)  # lifted off it after homing
 
         # The touchscreen takes over: Show Controller says so, and a move is skipped.
         sim.action(do="remote", on=False)
@@ -241,9 +247,16 @@ async def test_show_controller_shows_what_the_controller_reports(sim, tmp_path):
         await wait(lambda: any(e.type == "motion.message" and "wind sensor" in e.data["message"]
                                for e in events), 3)
 
+        # Red parks the ball on the dock and disarms: charging again. Then metal on the pad.
+        await wait(lambda: dock().get("state") == "charging", 30)
+        sim.action(do="metal", on=True)
+        await wait(lambda: dock().get("state") == "fault", 3)
+        await wait(lambda: any(e.type == "motion.dock" and e.data["state"] == "fault" for e in events), 3)
+
         entries = (tmp_path / "logs" / "show.jsonl").read_text()
         assert "under local control" in entries
         assert "was skipped: Remote control is off at the controller" in entries
         assert "the wind is Red" in entries
+        assert "found something other than the ball on its pad" in entries
     finally:
         await sc.stop()

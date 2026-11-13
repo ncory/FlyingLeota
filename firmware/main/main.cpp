@@ -29,6 +29,7 @@ namespace fw {
 
 BoardIo g_io;
 LoadCells g_cells;
+DockIo g_dock;
 NvsStore g_store;
 void console_start();
 
@@ -67,7 +68,9 @@ void start() {
 
     g_io.init(kRealDrives);
     g_cells.start();
+    g_dock.start();
     static std::unique_ptr<Drives> drives = make_drives(keeper.settings().rig, g_io, g_cells);
+    drives->attach_dock(&g_dock);
     static leota::Rig rig(keeper.settings().rig, *drives);
     static leota::ScmpServer scmp(rig, "flying-leota 0.1.0");
     scmp.on_config_set = [] { app().keeper->adopt(app().rig->config()); };

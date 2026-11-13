@@ -736,14 +736,15 @@ The dock and the ball each know something the other doesn't:
 
 | Where | Knows | Shows it |
 | --- | --- | --- |
-| **The dock** (motion controller) | Whether the ball is taking power, and how much. | Its touchscreen ("Charging, 18 W", "Docked, charged", "Not charging"), and Show Controller through SCMP status (a new optional field). |
+| **The dock** (motion controller) | Whether the ball is taking power, and how much. | Its touchscreen ("Charging, 18 W", "Docked, charged", "Not charging"), and Show Controller through SCMP status's `dock` field (built: core `dock.hpp`, firmware, simulator). |
 | **The ball** (the Pi, a Show Controller follower) | Charge level, voltage, current in or out, battery temperature, time left, charger status. | Show Controller's Units page and Dashboard, health warnings and the show log; and the controller's touchscreen. |
 
 - **The dock side works when the Pi can't.** A flat battery means the Pi is off, and then
   the dock's "Charging" is the only sign of life. It also works without Wi-Fi.
 - **Only the Pi knows the charge level.** It reads the fuel gauge and charger over I²C
   every few seconds.
-- **In Show Controller** (a follower feature, built in Show Controller): the charge on the
+- **In Show Controller** (built there, design section 9, "Battery-powered units"; drivers
+  for the MAX17048, MAX17260 and BQ27441 gauges, untested on hardware): the charge on the
   Units page and Dashboard, a health warning at 25%, show log entries for charging and
   low battery, and a clean shutdown at about 5% so the SD card isn't damaged. The battery
   board turns the Pi back on when charging starts.

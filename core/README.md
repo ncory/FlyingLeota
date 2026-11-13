@@ -27,6 +27,7 @@ Needs CMake 3.16 or later and a C++17 compiler. The tests take under a second.
 | `rig.hpp` | The controller: states, arming, homing, flying, tension checks, faults, remote and local, wind, parking. |
 | `settings.hpp` | What a person may change on site, as one table of fields with labels, units and ranges; checks; JSON for flash; `SettingsKeeper` applies changes to the rig and stores them through a `SettingsStore` (NVS on the board, a file in the simulator). |
 | `calibration.hpp` | The calibration check: points to fly to, `CalibrationRun` to fly and measure them, and `fit_calibration()`, which finds the pulley positions and head weight that agree with what was measured. |
+| `dock.hpp` | The dock's charger: on only while the ball rests on the dock and the rig is disarmed; charging or charged from the power it draws; an overload, something left on the pad (checked now and then while the ball is away) or a stuck switch is a fault. SCMP status carries it as `dock`. |
 | `line_test.hpp` | The line test: one line's load cell zero and scale from a known weight, and its drum correction from raising that weight 500 mm. |
 | `scmp.hpp` | SCMP version 1 with its Optional fields: messages in, acks and status out. No transport. |
 | `plant.hpp` | A simulated rig for tests and the PC simulator. Not used by the firmware. |
@@ -70,6 +71,11 @@ Needs CMake 3.16 or later and a C++17 compiler. The tests take under a second.
   gone.
 - **Wind.** At Amber, new moves must stay in a smaller box at half speed. At Red the ball
   flies back over the dock, sets down and disarms. Arming then waits for the hold time.
+- **The dock's charger** runs only while the ball rests on the dock and the rig is
+  disarmed. Above 3 W it's charging; below, charged. Over 45 W is a fault: off, and tried
+  again after a minute. While the ball is away, the charger goes on for a second every 30 s:
+  drawing more than 1.5 W then means something is on the pad, a fault until a later check
+  finds it clear.
 
 What the tests found about calibration: homing measures every line at the dock, which soaks
 up most pulley-position error. With a pulley 120 mm sideways and 80 mm low, the ball lands
