@@ -1,6 +1,8 @@
 // The dock's charger, as the controller runs it (SCMP's optional "dock" field).
 //
-// - On only while the ball rests on the dock and the rig is disarmed.
+// - On whenever the ball rests on the dock: between shows, armed or not. (With
+//   `while_armed` off, only while disarmed.) After homing the ball hangs 30 mm above the
+//   dock, which isn't resting on it: to charge between shows, set it down at dock height.
 // - What it draws says what's happening: above `charging_w` the ball is charging; below
 //   it, charged (a trickle).
 // - Drawing more than `max_w` is a fault: off at once, and tried again after `retry`.
@@ -26,7 +28,7 @@ const char* dock_state_name(DockState s);  // "off", "empty", "charging", "charg
 class DockCharger {
 public:
     // Call often (every 10 ms or so). `seated`: the ball rests on the dock. `may_charge`:
-    // the rig allows it (disarmed).
+    // the rig allows it (always, unless `while_armed` is off and the rig is armed).
     void update(Hardware& hw, const DockConfig& cfg, bool seated, bool may_charge, double now);
 
     bool fitted() const { return fitted_; }

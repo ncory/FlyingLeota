@@ -143,6 +143,11 @@ const std::vector<Field>& make_fields() {
          "If Show Controller goes quiet for this long while remote control is on, the rig stops.",
          [](const Settings& s) { return s.rig.heartbeat_timeout; },
          [](Settings& s, double v) { s.rig.heartbeat_timeout = v; }, nullptr},
+        {"charger.while_armed", "Lines and safety", "Charge while armed", "", K::Toggle, 0, 1, 0,
+         "On: the dock charges the ball whenever it rests there, between shows too. Off: only while "
+         "disarmed (if charging upsets the projector's picture during a scene on the dock).",
+         [](const Settings& s) { return s.rig.charger.while_armed ? 1.0 : 0.0; },
+         [](Settings& s, double v) { s.rig.charger.while_armed = v != 0; }, nullptr},
         {"remote_arm", "Lines and safety", "Show Controller may arm", "", K::Toggle, 0, 1, 0,
          "Off: only this screen can arm the rig. Show Controller can always disarm and stop it.",
          [](const Settings& s) { return s.rig.remote_arm ? 1.0 : 0.0; },

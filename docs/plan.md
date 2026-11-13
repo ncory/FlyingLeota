@@ -722,10 +722,14 @@ flowchart LR
 - **Cold.** Lithium-ion must not be charged below 0 °C. The charger needs a temperature
   cut-off. The electronics keep the ball a little warm, but on a freezing night the first
   charge may wait; the fuel gauge's temperature says why.
-- **When it's on.** The controller turns the transmitter on while the ball rests on the
-  dock and the rig isn't flying, and off when it lifts. If the transmitter draws power with
-  no ball on the dock, something metal is on the pad: the controller turns it off and says
-  so.
+- **When it's on.** The controller turns the transmitter on whenever the ball rests on the
+  dock, armed or not, and off when it lifts. Between shows is the best time to top up, so
+  the ball should wait on the dock: after homing it hangs 30 mm up, which isn't resting,
+  so Show Controller sets it down at the bottom of z between shows. If the transmitter
+  draws power with no ball on the dock, something metal is on the pad: the controller
+  turns it off and says so. Setup's "Charge while armed" (on by default) can limit
+  charging to disarmed, if H2 finds the charging field upsets the projector's picture
+  during a scene played on the dock.
 - **Power path.** The charger must keep the 5 V rail steady when the ball lands and lifts.
   Many power banks drop their output for a moment then, which would reboot the Pi every
   time. Test by docking and lifting while video plays (H3).

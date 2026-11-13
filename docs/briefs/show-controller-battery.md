@@ -64,7 +64,8 @@ knows when the ball is charging even when the Pi is flat and silent. Proposed fo
 ```
 
 - `state`: `charging` (taking power), `charged` (seated, taking only a trickle),
-  `off` (seated, but the controller has the charger off, such as while armed),
+  `off` (seated, but the controller has the charger off: only when Setup's "Charge while
+  armed" is turned off and the rig is armed),
   `empty` (nothing on the dock), or `fault` (drawing power with no ball: something metal
   on the pad; the controller turns it off).
 - `watts`: what the charger draws, one decimal place.

@@ -42,7 +42,7 @@ struct StuckDock : Hardware {
 
 }  // namespace
 
-TEST_CASE("a ball resting on the dock charges while the rig is disarmed, and not while armed") {
+TEST_CASE("a ball resting on the dock charges, armed or not, until it lifts off") {
     Sim sim(quick_dock());
     sim.plant.fit_dock(true);
     sim.run(1.0);
@@ -52,6 +52,29 @@ TEST_CASE("a ball resting on the dock charges while the rig is disarmed, and not
     sim.plant.set_ball_full(true);
     sim.run(0.2);
     CHECK(sim.rig.dock().state() == DockState::Charged);
+    sim.plant.set_ball_full(false);
+    REQUIRE(sim.arm());
+    sim.run(0.1);
+    CHECK(sim.plant.dock_on());  // between shows, armed on the dock: still charging
+    CHECK(sim.rig.dock().state() == DockState::Charging);
+    REQUIRE(sim.rig.home(sim.t));
+    REQUIRE(sim.until([&] { return sim.rig.homed() && sim.rig.state() == RigState::Idle; }, 60.0));
+    CHECK(sim.rig.dock().state() == DockState::Empty);  // lifted 30 mm off it after homing
+    CHECK_FALSE(sim.plant.dock_on());
+    // Set down at dock height, still armed: charging again.
+    REQUIRE(sim.fly_to(sim.cfg.dock, 2.0));
+    sim.run(1.0);
+    CHECK(sim.rig.armed());
+    CHECK(sim.rig.dock().state() == DockState::Charging);
+}
+
+TEST_CASE("with charging while armed turned off, arming turns the charger off") {
+    RigConfig c = quick_dock();
+    c.charger.while_armed = false;
+    Sim sim(c);
+    sim.plant.fit_dock(true);
+    sim.run(1.0);
+    CHECK(sim.rig.dock().state() == DockState::Charging);
     REQUIRE(sim.arm());
     sim.run(0.1);
     CHECK_FALSE(sim.plant.dock_on());

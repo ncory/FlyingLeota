@@ -63,7 +63,7 @@ and the brakes hold, and how to recover. STOP is on every screen.
 
 - **Groups:** Flight (two-axis mode, workspace edges, speeds, accelerations, smoothing),
   Lines and safety (slack, overload and mismatch limits, heartbeat timeout, whether Show
-  Controller may arm), Wind (sensor fitted, Amber and Red gusts, hold time, Amber speed,
+  Controller may arm, whether the dock charges while armed), Wind (sensor fitted, Amber and Red gusts, hold time, Amber speed,
   swing alarm), Measurements (pulleys, dock, head weight), Sensors (each line's load cell
   zero and scale, and drum correction), Network (DHCP or a fixed address, the SCMP port)
   and the PIN.

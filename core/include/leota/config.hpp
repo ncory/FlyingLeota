@@ -44,9 +44,10 @@ struct LineSensors {
 };
 
 // The dock's charger (docs/plan.md, section 4: inductive charging). The controller turns it
-// on only while the ball rests on the dock and the rig is disarmed, and tells what it's
-// doing from the power it draws.
+// on whenever the ball rests on the dock, armed or not, and tells what it's doing from the
+// power it draws.
 struct DockConfig {
+    bool while_armed = true;    // charge while armed too (off: only while disarmed)
     double charging_w = 3.0;    // W: drawing more, the ball is charging; less, it's charged
     double empty_w = 1.5;       // W: the most the charger draws with nothing on its pad
     double max_w = 45.0;        // W: drawing more is a fault (something metal on the pad?)

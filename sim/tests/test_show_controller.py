@@ -213,17 +213,23 @@ async def test_show_controller_shows_what_the_controller_reports(sim, tmp_path):
         assert [l["line"] for l in st["lines"]] == ["A", "B", "C", "D"]
         assert st["message"].startswith("Started.")
 
-        # The dock's charger: on while the ball rests on it and the rig is disarmed.
+        # The dock's charger: on whenever the ball rests on it, armed or not.
         dock = lambda: dev().status()["dock"] or {}  # noqa: E731
         await wait(lambda: dock().get("state") == "charging" and dock().get("watts") == 20.0, 5)
 
         await sc.bus.run("motion.arm", {"device": "leota"})
         await wait(lambda: sim.state()["state"] == "ARMED", 3)
-        await wait(lambda: dock().get("state") == "off", 3)
+        await asyncio.sleep(0.5)
+        assert dock()["state"] == "charging"  # armed between shows: still charging
         await sc.bus.run("motion.home", {"output": "leader/leota-z"})
         await wait(lambda: sim.state()["homed"] and sim.state()["state"] == "ARMED", 40)
         await wait(lambda: all(l["tension"] > 5 for l in dev().status()["lines"]), 3)
-        await wait(lambda: dock().get("state") == "empty", 3)  # lifted off it after homing
+        await wait(lambda: dock().get("state") == "empty", 3)  # lifted 30 mm off it after homing
+        # Set down at dock height (the bottom of z), still armed: charging again.
+        z_min = next(a for a in dev().info["axes"] if a["axis"] == "z")["min"]
+        await sc.bus.run("motion.goto", {"output": "leader/leota-z", "target": z_min})
+        await wait(lambda: dock().get("state") == "charging", 6)
+        assert sim.state()["armed"]
 
         # The touchscreen takes over: Show Controller says so, and a move is skipped.
         sim.action(do="remote", on=False)
